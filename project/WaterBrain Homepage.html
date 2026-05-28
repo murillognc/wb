@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WaterBrain · GR Water Solutions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --orange: #FA981A;
+    --orange-dark: #FA6800;
+    --green: #51CF4A;
+    --green-dark: #009245;
+    --blue: #116CD3;
+    --blue-light: #11A0D3;
+    --navy: #06267C;
+    --navy-dark: #020F3A;
+    --navy-mid: #082F97;
+    --navy-deep: #00040F;
+    --navy-bright: #0B3FA8;
+    --white: #FFFFFF;
+    --text-muted: rgba(255,255,255,0.72);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    font-family: 'Inter', 'DM Sans', sans-serif;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(17, 160, 211, 0.10) 0%, transparent 42%),
+      radial-gradient(circle at 85% 80%, rgba(17, 108, 211, 0.08) 0%, transparent 45%),
+      radial-gradient(ellipse 110% 85% at 50% 0%,
+        var(--navy-bright) 0%,
+        var(--navy-mid) 10%,
+        var(--navy) 22%,
+        var(--navy-dark) 42%,
+        var(--navy-deep) 75%);
+    background-attachment: fixed;
+    color: var(--white);
+    position: relative;
+  }
+
+  #waterCanvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+  }
+
+  .cursor-glow {
+    position: fixed;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(17,160,211,0.2) 0%, rgba(17,108,211,0.08) 30%, transparent 70%);
+    pointer-events: none;
+    z-index: 1;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.3s ease;
+    opacity: 0;
+    filter: blur(20px);
+  }
+
+  main {
+    position: relative;
+    z-index: 2;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 28px 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .logo-wrap img {
+    height: 48px;
+    width: auto;
+    display: block;
+  }
+
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    backdrop-filter: blur(10px);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 0 rgba(81, 207, 74, 0.7);
+    animation: pulse-dot 2s infinite;
+  }
+
+  @keyframes pulse-dot {
+    0% { box-shadow: 0 0 0 0 rgba(81, 207, 74, 0.7); }
+    70% { box-shadow: 0 0 0 12px rgba(81, 207, 74, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(81, 207, 74, 0); }
+  }
+
+  .hero {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 24px;
+    text-align: center;
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: linear-gradient(135deg, rgba(250,152,26,0.15), rgba(250,104,0,0.1));
+    border: 1px solid rgba(250,152,26,0.35);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin-bottom: 32px;
+    animation: fadeInUp 0.8s ease both;
+  }
+
+  .tag::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--orange);
+    box-shadow: 0 0 8px var(--orange);
+  }
+
+  h1 {
+    font-family: 'Poppins', 'Nunito', sans-serif;
+    font-size: clamp(3rem, 9vw, 7rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    margin-bottom: 24px;
+    background: linear-gradient(
+      90deg,
+      #FA981A 0%,
+      #FA6800 15%,
+      #51CF4A 35%,
+      #11A0D3 55%,
+      #116CD3 75%,
+      #51CF4A 90%,
+      #FA981A 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: fadeInUp 0.8s ease 0.1s both, brandShine 8s linear infinite;
+    filter: drop-shadow(0 0 40px rgba(17, 160, 211, 0.25));
+  }
+
+  @keyframes brandShine {
+    0%   { background-position: 0% center; }
+    100% { background-position: 200% center; }
+  }
+
+  .subtitle {
+    font-size: clamp(1rem, 1.6vw, 1.2rem);
+    font-weight: 400;
+    color: var(--text-muted);
+    max-width: 580px;
+    line-height: 1.6;
+    margin-bottom: 56px;
+    animation: fadeInUp 0.8s ease 0.2s both;
+  }
+
+  .subtitle strong {
+    color: var(--white);
+    font-weight: 600;
+  }
+
+  .access-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    min-width: 400px;
+    padding: 22px 48px;
+    text-align: center;
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease, gap 0.3s ease;
+    font-family: 'Poppins', 'Nunito', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    color: var(--white);
+    text-decoration: none;
+    background: linear-gradient(135deg, var(--blue-light) 0%, var(--blue) 50%, #1124D3 100%);
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.1),
+      0 20px 60px rgba(17,108,211,0.4),
+      0 0 80px rgba(17,160,211,0.3);
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease;
+    animation: fadeInUp 0.8s ease 0.3s both, glow-pulse 3s ease-in-out infinite;
+    z-index: 1;
+  }
+
+  @keyframes glow-pulse {
+    0%, 100% {
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.1),
+        0 20px 60px rgba(17,108,211,0.4),
+        0 0 80px rgba(17,160,211,0.3);
+    }
+    50% {
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.15),
+        0 20px 80px rgba(17,108,211,0.6),
+        0 0 120px rgba(17,160,211,0.5);
+    }
+  }
+
+  .access-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent 50%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .access-btn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+    transition: left 0.6s ease;
+  }
+
+  .access-btn:hover { transform: translateY(-3px) scale(1.02); }
+  .access-btn:hover::before { opacity: 1; }
+  .access-btn:hover::after { left: 100%; }
+  .access-btn:active { transform: translateY(-1px) scale(1.0); }
+
+  .access-btn .icon {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease, width 0.3s ease, margin 0.3s ease;
+  }
+
+  .access-btn:hover .icon { transform: translateX(4px); }
+
+  /* Loading sequence — button stays fixed, text cross-fades in white, centered */
+  .access-btn > span {
+    display: inline-block;
+    text-align: center;
+    transition: opacity 0.24s ease;
+  }
+  .access-btn > span.is-fading { opacity: 0; }
+
+  .access-btn.is-loading {
+    pointer-events: none;
+    cursor: default;
+    gap: 0;
+  }
+  .access-btn.is-loading .icon {
+    opacity: 0;
+    width: 0;
+    margin: 0;
+    transform: scale(0.4);
+  }
+
+  .btn-container {
+    position: relative;
+    display: inline-block;
+  }
+
+  .btn-waves {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  .wave-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    border: 1px solid rgba(17,160,211,0.3);
+    border-radius: 999px;
+    animation: wave-expand 3s ease-out infinite;
+  }
+
+  .wave-ring:nth-child(2) { animation-delay: 1s; }
+  .wave-ring:nth-child(3) { animation-delay: 2s; }
+
+  @keyframes wave-expand {
+    0% {
+      width: 260px;
+      height: 80px;
+      opacity: 0.7;
+      transform: translate(-50%, -50%);
+    }
+    100% {
+      width: 500px;
+      height: 160px;
+      opacity: 0;
+      transform: translate(-50%, -50%);
+    }
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 768px) {
+    header { padding: 20px 24px; }
+    .logo-wrap img { height: 36px; }
+    .status-badge { font-size: 10px; padding: 6px 12px; }
+    .access-btn { padding: 18px 36px; font-size: 1rem; min-width: 300px; }
+    .cursor-glow { display: none; }
+    .subtitle { margin-bottom: 44px; }
+  }
+
+  @media (max-width: 480px) {
+    .status-badge span:last-child { display: none; }
+    .status-badge { padding: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="waterCanvas"></canvas>
+<div class="cursor-glow" id="cursorGlow"></div>
+
+<main>
+  <header>
+    <div class="logo-wrap">
+      <img src="https://grwatersolutions.com.br/wp-content/uploads/2026/04/Logo-GRWS-Fonte-Branca-scaled.png" alt="GR Water Solutions">
+    </div>
+    <div class="status-badge">
+      <span class="status-dot"></span>
+      <span>Sistema Online</span>
+    </div>
+  </header>
+
+  <section class="hero">
+    <span class="tag">Inteligência Corporativa</span>
+
+    <h1>WaterBrain</h1>
+
+    <p class="subtitle">
+      O <strong>cérebro de IA</strong> da GR Water Solutions. Consulte dados, documentos técnicos e processos internos em linguagem natural.
+    </p>
+
+    <div class="btn-container">
+      <div class="btn-waves">
+        <span class="wave-ring"></span>
+        <span class="wave-ring"></span>
+        <span class="wave-ring"></span>
+      </div>
+      <a href="WaterBrain Dashboard.html" class="access-btn" id="accessBtn">
+        <span>Acessar WaterBrain</span>
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
+      </a>
+    </div>
+  </section>
+</main>
+
+<script>
+  // =====================================================
+  //  WATERBRAIN · Background
+  //  Rede neural com ligações gradiente (cores da marca)
+  //  + Ripples + Shimmer
+  // =====================================================
+
+  const canvas = document.getElementById('waterCanvas');
+  const ctx = canvas.getContext('2d');
+  let width, height;
+  const mouse = { x: null, y: null, radius: 200 };
+
+  function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+  }
+
+  // -----------------------------------------------------
+  // Rede neural com ligações coloridas
+  // -----------------------------------------------------
+  const nodes = [];
+  const NODE_COUNT = 75;
+  const MAX_DIST = 185;
+
+  // Cores em RGB (facilita criar gradientes e variar alpha)
+  const BRAND_COLORS = [
+    { r: 17,  g: 160, b: 211, weight: 0.55 }, // azul claro (dominante)
+    { r: 17,  g: 108, b: 211, weight: 0.10 }, // azul
+    { r: 81,  g: 207, b: 74,  weight: 0.20 }, // verde
+    { r: 250, g: 152, b: 26,  weight: 0.15 }  // laranja
+  ];
+
+  function pickColor() {
+    const r = Math.random();
+    let acc = 0;
+    for (const c of BRAND_COLORS) {
+      acc += c.weight;
+      if (r < acc) return c;
+    }
+    return BRAND_COLORS[0];
+  }
+
+  function createNodes() {
+    nodes.length = 0;
+    for (let i = 0; i < NODE_COUNT; i++) {
+      nodes.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        r: Math.random() * 1.6 + 1,
+        color: pickColor()
+      });
+    }
+  }
+
+  function drawNetwork() {
+    // === Ligações com gradiente entre as cores dos 2 nós ===
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i];
+        const b = nodes[j];
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < MAX_DIST) {
+          // opacidade cresce quanto mais próximos
+          const proximity = 1 - dist / MAX_DIST;
+          const baseAlpha = proximity * 0.55; // mais forte que antes (era 0.25)
+
+          // Boost se envolver cor "destaque" (verde ou laranja)
+          const isAccent = (c) => c.r === 81 || c.r === 250;
+          const boost = (isAccent(a.color) || isAccent(b.color)) ? 1.25 : 1.0;
+          const alpha = Math.min(baseAlpha * boost, 0.85);
+
+          const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+          grad.addColorStop(0, `rgba(${a.color.r}, ${a.color.g}, ${a.color.b}, ${alpha})`);
+          grad.addColorStop(1, `rgba(${b.color.r}, ${b.color.g}, ${b.color.b}, ${alpha})`);
+
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = proximity > 0.6 ? 1.1 : 0.7;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // === Nós ===
+    nodes.forEach(n => {
+      if (mouse.x !== null) {
+        const dx = n.x - mouse.x;
+        const dy = n.y - mouse.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < mouse.radius) {
+          const force = (mouse.radius - dist) / mouse.radius;
+          n.vx += (dx / dist) * force * 0.15;
+          n.vy += (dy / dist) * force * 0.15;
+        }
+      }
+
+      n.x += n.vx;
+      n.y += n.vy;
+      n.vx *= 0.985;
+      n.vy *= 0.985;
+      if (Math.abs(n.vx) < 0.08) n.vx += (Math.random() - 0.5) * 0.1;
+      if (Math.abs(n.vy) < 0.08) n.vy += (Math.random() - 0.5) * 0.1;
+      if (n.x < 0 || n.x > width) n.vx *= -1;
+      if (n.y < 0 || n.y > height) n.vy *= -1;
+      n.x = Math.max(0, Math.min(width, n.x));
+      n.y = Math.max(0, Math.min(height, n.y));
+
+      const c = n.color;
+
+      // núcleo
+      ctx.fillStyle = `rgba(${c.r}, ${c.g}, ${c.b}, 0.95)`;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  // -----------------------------------------------------
+  // Ripples (gotas caindo, ocasional + clique)
+  // -----------------------------------------------------
+  const ripples = [];
+
+  class Ripple {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.r = 0;
+      this.maxR = Math.random() * 100 + 60;
+      this.speed = Math.random() * 0.8 + 0.8;
+      this.opacity = 1;
+    }
+    update() {
+      this.r += this.speed;
+      this.opacity = 1 - (this.r / this.maxR);
+    }
+    draw() {
+      if (this.opacity <= 0) return;
+      ctx.strokeStyle = `rgba(17, 160, 211, ${this.opacity * 0.5})`;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.stroke();
+
+      if (this.r > 12) {
+        ctx.strokeStyle = `rgba(81, 207, 74, ${this.opacity * 0.3})`;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r - 10, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    isDead() { return this.r >= this.maxR; }
+  }
+
+  function spawnRipple() {
+    ripples.push(new Ripple(
+      Math.random() * width,
+      Math.random() * (height - 120)
+    ));
+    setTimeout(spawnRipple, 1400 + Math.random() * 1800);
+  }
+
+  function drawRipples() {
+    for (let i = ripples.length - 1; i >= 0; i--) {
+      ripples[i].update();
+      ripples[i].draw();
+      if (ripples[i].isDead()) ripples.splice(i, 1);
+    }
+  }
+
+  // -----------------------------------------------------
+  // Shimmer (reflexos horizontais sutis)
+  // -----------------------------------------------------
+  const shimmers = [];
+  const SHIMMER_COUNT = 10;
+
+  class Shimmer {
+    constructor() { this.reset(true); }
+    reset(initial = false) {
+      this.x = initial ? Math.random() * width : -100;
+      this.y = Math.random() * height;
+      this.len = Math.random() * 60 + 30;
+      this.vx = Math.random() * 0.5 + 0.3;
+      this.opacity = Math.random() * 0.12 + 0.04;
+    }
+    update() {
+      this.x += this.vx;
+      if (this.x > width + 100) this.reset();
+    }
+    draw() {
+      const grad = ctx.createLinearGradient(this.x, this.y, this.x + this.len, this.y);
+      grad.addColorStop(0, 'rgba(255,255,255,0)');
+      grad.addColorStop(0.5, `rgba(180, 220, 255, ${this.opacity})`);
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(this.x, this.y);
+      ctx.lineTo(this.x + this.len, this.y);
+      ctx.stroke();
+    }
+  }
+
+  function createShimmers() {
+    shimmers.length = 0;
+    for (let i = 0; i < SHIMMER_COUNT; i++) shimmers.push(new Shimmer());
+  }
+
+  function drawShimmers() {
+    shimmers.forEach(s => { s.update(); s.draw(); });
+  }
+
+  // -----------------------------------------------------
+  // Loop principal
+  // -----------------------------------------------------
+  function animate() {
+    ctx.clearRect(0, 0, width, height);
+    drawShimmers();
+    drawNetwork();
+    drawRipples();
+    requestAnimationFrame(animate);
+  }
+
+  function init() {
+    resize();
+    createNodes();
+    createShimmers();
+    animate();
+    spawnRipple();
+  }
+
+  window.addEventListener('resize', () => {
+    resize();
+    createNodes();
+    createShimmers();
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+  });
+
+  window.addEventListener('mouseleave', () => {
+    mouse.x = null;
+    mouse.y = null;
+  });
+
+  init();
+
+  // ===== Luz do cursor =====
+  const cursorGlow = document.getElementById('cursorGlow');
+  document.addEventListener('mousemove', (e) => {
+    cursorGlow.style.opacity = '1';
+    cursorGlow.style.left = e.clientX + 'px';
+    cursorGlow.style.top = e.clientY + 'px';
+  });
+  document.addEventListener('mouseleave', () => {
+    cursorGlow.style.opacity = '0';
+  });
+
+  // ===== Clique no canvas gera ripple =====
+  canvas.addEventListener('click', (e) => {
+    ripples.push(new Ripple(e.clientX, e.clientY));
+  });
+
+  // ===== Botão de acesso =====
+  // Vai para o dashboard conversacional do WaterBrain
+  const WATERBRAIN_URL = 'WaterBrain Dashboard.html';
+
+  const LOADING_STATES = [
+    'Ligando agentes...',
+    'Construindo contextos...',
+    'Acessando base de dados'
+  ];
+  const STATE_DURATION = 1500;  // 1.5s per state
+  const FADE_DURATION  = 240;   // ms
+
+  document.getElementById('accessBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    const btn = e.currentTarget;
+    const label = btn.querySelector('span');
+
+    // Lock the button + switch to loading style (gradient text, hidden arrow)
+    btn.classList.add('is-loading');
+
+    let idx = 0;
+
+    function swap(text) {
+      label.classList.add('is-fading');
+      setTimeout(() => {
+        label.textContent = text;
+        label.classList.remove('is-fading');
+      }, FADE_DURATION);
+    }
+
+    // First state immediately
+    swap(LOADING_STATES[0]);
+
+    const stepper = setInterval(() => {
+      idx++;
+      if (idx >= LOADING_STATES.length) {
+        clearInterval(stepper);
+        // Let the final state show its full second, then navigate
+        setTimeout(() => {
+          window.location.href = WATERBRAIN_URL;
+        }, STATE_DURATION);
+        return;
+      }
+      swap(LOADING_STATES[idx]);
+    }, STATE_DURATION);
+  });
+</script>
+
+</body>
+</html>

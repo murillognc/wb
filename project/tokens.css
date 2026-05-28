@@ -1,0 +1,438 @@
+/* =====================================================================
+   GR Water Solutions — Design Tokens
+   Versão 1.1 · Abril 2026
+
+   Mudanças desde v1.0:
+   · CTA principal agora é AZUL (antes laranja)
+   · Títulos em Futura Regular 400 com palavras-chave em Extrabold 800
+     (padrão editorial: use <b> ou <strong> para marcar a palavra-chave)
+   · Fonte laranja proibida sobre fundo navy (eyebrow / label)
+   · Eyebrow com white-space: nowrap
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   FONTES OFICIAIS DA MARCA
+   --------------------------------------------------------------------- */
+/* Futura — display / títulos */
+@font-face {
+  font-family: 'Futura';
+  src: url('fonts/futura-bt.ttf') format('truetype');
+  font-weight: 400 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Futura';
+  src: url('fonts/futura-extrabold.ttf') format('truetype');
+  font-weight: 700 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Gotham — corpo (família completa) */
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-Thin.otf')        format('opentype'); font-weight: 100; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-ThinItalic.otf')  format('opentype'); font-weight: 100; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-XLight.otf')      format('opentype'); font-weight: 200; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-XLightItalic.otf')format('opentype'); font-weight: 200; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-Light.otf')       format('opentype'); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-LightItalic.otf') format('opentype'); font-weight: 300; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-Book.otf')        format('opentype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-BookItalic.otf')  format('opentype'); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-Medium.otf')      format('opentype'); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-MediumItalic.otf')format('opentype'); font-weight: 500; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-Bold.otf')        format('opentype'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-BoldItalic.otf')  format('opentype'); font-weight: 700; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-Black.otf')       format('opentype'); font-weight: 800; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-BlackItalic.otf') format('opentype'); font-weight: 800; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-Ultra.otf')       format('opentype'); font-weight: 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Gotham'; src: url('fonts/Gotham-UltraItalic.otf') format('opentype'); font-weight: 900; font-style: italic; font-display: swap; }
+
+:root {
+  /* ------------------ CORES PRIMÁRIAS ------------------ */
+  --grws-laranja:       #FA981A;
+  --grws-verde:         #51CF4A;
+  --grws-azul:          #116CD3;
+
+  /* ------------------ GRADIENTES PRIMÁRIOS ------------------ */
+  --grws-grad-laranja:  linear-gradient(135deg, #FAA823 0%, #FA6800 100%);
+  --grws-grad-verde:    linear-gradient(135deg, #68E04B 0%, #009245 100%);
+  --grws-grad-azul:     linear-gradient(135deg, #11A0D3 0%, #1124D3 100%);
+
+  /* ------------------ NAVY / FUNDO ESCURO ------------------ */
+  --grws-navy:          #06267C;
+  --grws-navy-deep:     #031D61;
+  --grws-navy-mid:      #082F97;
+  --grws-grad-navy:     linear-gradient(135deg, #082F97 0%, #031D61 100%);
+
+  /* ------------------ NEUTROS (undertone azul) ------------------ */
+  --grws-branco:        #FFFFFF;
+  --grws-preto:         #1F222B;
+  --grws-cinza-900:     #161A24;
+  --grws-cinza-700:     #434C5E;
+  --grws-cinza-500:     #818999;
+  --grws-cinza-300:     #CFD4DE;
+  --grws-cinza-200:     #E3E7EE;
+  --grws-cinza-100:     #EEF1F7;
+  --grws-cinza-50:      #F6F8FB;
+
+  /* ------------------ TINTS DE APOIO ------------------ */
+  --grws-tint-laranja:  #FFF4E6;
+  --grws-tint-verde:    #EAFBE9;
+  --grws-tint-azul:     #EBF3FF;
+  --grws-tint-navy:     #E6EBF5;
+
+  /* ------------------ SEMÂNTICOS ------------------ */
+  --grws-surface:       var(--grws-branco);
+  --grws-surface-alt:   var(--grws-cinza-50);
+  --grws-surface-dark:  var(--grws-navy);
+  --grws-border:        var(--grws-cinza-200);
+  --grws-border-strong: var(--grws-cinza-300);
+  --grws-text:          var(--grws-preto);
+  --grws-text-muted:    var(--grws-cinza-700);
+  --grws-text-subtle:   var(--grws-cinza-500);
+  --grws-text-invert:   var(--grws-branco);
+  --grws-link:          var(--grws-azul);
+
+  /* ------------------ TIPOGRAFIA ------------------ */
+  --grws-font-display:  'Futura', 'Futura BT', 'Century Gothic', system-ui, sans-serif;
+  --grws-font-body:     'Gotham', 'Helvetica Neue', Arial, sans-serif;
+
+  --grws-fs-display-xl: clamp(44px, 5.6vw, 72px);
+  --grws-fs-display:    clamp(36px, 4vw, 52px);
+  --grws-fs-h1:         40px;
+  --grws-fs-h2:         32px;
+  --grws-fs-h3:         24px;
+  --grws-fs-h4:         18px;
+  --grws-fs-body-lg:    18px;
+  --grws-fs-body:       15px;
+  --grws-fs-sm:         13px;
+  --grws-fs-xs:         11px;
+
+  --grws-lh-tight:      1.05;
+  --grws-lh-heading:    1.15;
+  --grws-lh-body:       1.65;
+
+  --grws-fw-regular:    400;   /* base dos títulos (padrão editorial) */
+  --grws-fw-medium:     500;
+  --grws-fw-semibold:   600;
+  --grws-fw-bold:       700;
+  --grws-fw-black:      800;   /* palavra-chave no título */
+
+  --grws-ls-tight:      -0.02em;
+  --grws-ls-normal:     0;
+  --grws-ls-display:    0.02em;  /* tracking levemente aberto em Futura CAPS */
+  --grws-ls-wide:       0.08em;
+  --grws-ls-eyebrow:    0.12em;
+
+  /* ------------------ SPACING (base 4px) ------------------ */
+  --grws-sp-1:  4px;
+  --grws-sp-2:  8px;
+  --grws-sp-3:  12px;
+  --grws-sp-4:  16px;
+  --grws-sp-5:  20px;
+  --grws-sp-6:  24px;
+  --grws-sp-8:  32px;
+  --grws-sp-10: 40px;
+  --grws-sp-12: 48px;
+  --grws-sp-16: 64px;
+  --grws-sp-20: 80px;
+  --grws-sp-24: 96px;
+
+  /* ------------------ RADIUS ------------------ */
+  --grws-radius-sm: 4px;
+  --grws-radius:    8px;
+  --grws-radius-md: 12px;
+  --grws-radius-lg: 16px;
+  --grws-radius-xl: 24px;
+  --grws-radius-pill: 999px;
+
+  /* ------------------ ELEVAÇÃO ------------------ */
+  --grws-shadow-sm:  0 1px 2px rgba(6, 38, 124, 0.06);
+  --grws-shadow:     0 4px 12px rgba(6, 38, 124, 0.08);
+  --grws-shadow-md:  0 8px 24px rgba(6, 38, 124, 0.10);
+  --grws-shadow-lg:  0 16px 40px rgba(6, 38, 124, 0.14);
+  --grws-shadow-focus: 0 0 0 3px rgba(17, 108, 211, 0.28);
+
+  /* ------------------ MOTION ------------------ */
+  --grws-ease:        cubic-bezier(0.2, 0.8, 0.2, 1);
+  --grws-duration-1:  120ms;
+  --grws-duration-2:  200ms;
+  --grws-duration-3:  320ms;
+}
+
+/* =====================================================================
+   RESET mínimo + base
+   ===================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--grws-font-body);
+  font-size: var(--grws-fs-body);
+  line-height: var(--grws-lh-body);
+  color: var(--grws-text);
+  background: var(--grws-surface);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------------------------------------------------------------------
+   TÍTULOS — PADRÃO EDITORIAL GRWS
+   Regular 400 como base; use <b> ou <strong> dentro do título para
+   marcar a(s) palavra(s)-chave em Extrabold 800. Ex.:
+       <h1>Eficiência <b>real</b>.</h1>
+       <h2>Não vendemos <strong>produto</strong>.</h2>
+   Nunca o título inteiro em Extrabold.
+   --------------------------------------------------------------------- */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--grws-font-display);
+  font-weight: var(--grws-fw-regular);
+  line-height: var(--grws-lh-tight);
+  letter-spacing: var(--grws-ls-display);
+  text-transform: uppercase;
+  margin: 0;
+  color: var(--grws-navy);
+}
+h1 b, h1 strong,
+h2 b, h2 strong,
+h3 b, h3 strong,
+h4 b, h4 strong,
+h5 b, h5 strong,
+h6 b, h6 strong { font-weight: var(--grws-fw-black); }
+
+h1 { font-size: var(--grws-fs-h1); }
+h2 { font-size: var(--grws-fs-h2); }
+h3 { font-size: var(--grws-fs-h3); }
+h4 { font-size: var(--grws-fs-h4); letter-spacing: 0.06em; }
+h5, h6 { font-size: var(--grws-fs-xs); letter-spacing: var(--grws-ls-eyebrow); }
+
+p { margin: 0; text-wrap: pretty; }
+a { color: var(--grws-link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+img, svg { display: block; max-width: 100%; }
+
+/* Utility: aplica o padrão Regular+Extrabold em qualquer tag não-h */
+.grws-headline {
+  font-family: var(--grws-font-display);
+  font-weight: var(--grws-fw-regular);
+  text-transform: uppercase;
+  letter-spacing: var(--grws-ls-display);
+  line-height: var(--grws-lh-tight);
+  color: var(--grws-navy);
+}
+.grws-headline b, .grws-headline strong { font-weight: var(--grws-fw-black); }
+.grws-headline--on-dark { color: var(--grws-branco); }
+
+/* =====================================================================
+   COMPONENTES UTILITÁRIOS
+   ===================================================================== */
+
+/* ------------------ Eyebrow / tag ------------------ */
+.grws-eyebrow {
+  display: inline-block;
+  font-family: var(--grws-font-display);
+  font-size: var(--grws-fs-xs);
+  font-weight: var(--grws-fw-bold);
+  letter-spacing: var(--grws-ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--grws-azul);
+  background: var(--grws-tint-azul);
+  padding: 6px 14px;
+  border-radius: var(--grws-radius-pill);
+  white-space: nowrap;
+}
+.grws-eyebrow--laranja { color: var(--grws-laranja); background: var(--grws-tint-laranja); }
+.grws-eyebrow--verde   { color: #0E8A3E; background: var(--grws-tint-verde); }
+/* Fundo navy/escuro — NUNCA use eyebrow laranja sobre navy.
+   Use a variante on-dark, que é branca translúcida. */
+.grws-eyebrow--on-dark {
+  background: rgba(255,255,255,0.08);
+  color: var(--grws-branco);
+  border: 1px solid rgba(255,255,255,0.22);
+  backdrop-filter: blur(4px);
+}
+
+/* ------------------ Botões ------------------
+   Hierarquia de cor:
+     · --primary  =  AZUL (CTA principal da marca)
+     · --laranja  =  destaque / conversão de alto impacto
+     · --verde    =  confirmação / sucesso / ação positiva
+     · --navy     =  ação secundária formal
+     · --outline  =  ação terciária sobre fundo claro
+     · --ghost-light = ação secundária sobre fundo escuro
+   Pode mesclar variantes na mesma tela (ex: azul + verde).
+   ------------------------------------------------ */
+.grws-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--grws-font-display);
+  font-weight: var(--grws-fw-bold);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 14px 28px;
+  border-radius: var(--grws-radius);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: transform var(--grws-duration-2) var(--grws-ease),
+              box-shadow var(--grws-duration-2) var(--grws-ease),
+              opacity   var(--grws-duration-2) var(--grws-ease),
+              background var(--grws-duration-2) var(--grws-ease);
+}
+.grws-btn:hover { text-decoration: none; transform: translateY(-1px); }
+
+/* Primary (alias de --azul) */
+.grws-btn--primary,
+.grws-btn--azul {
+  background: var(--grws-grad-azul);
+  color: var(--grws-branco);
+  box-shadow: 0 4px 14px rgba(17,108,211,0.25);
+}
+.grws-btn--primary:hover,
+.grws-btn--azul:hover { box-shadow: 0 8px 22px rgba(17,108,211,0.32); }
+
+.grws-btn--laranja {
+  background: var(--grws-grad-laranja);
+  color: var(--grws-branco);
+  box-shadow: 0 4px 14px rgba(250,104,0,0.25);
+}
+.grws-btn--laranja:hover { box-shadow: 0 8px 22px rgba(250,104,0,0.32); }
+
+.grws-btn--verde {
+  background: var(--grws-grad-verde);
+  color: var(--grws-branco);
+  box-shadow: 0 4px 14px rgba(81,207,74,0.28);
+}
+.grws-btn--verde:hover { box-shadow: 0 8px 22px rgba(81,207,74,0.36); }
+
+.grws-btn--navy {
+  background: var(--grws-navy);
+  color: var(--grws-branco);
+}
+.grws-btn--navy:hover { background: var(--grws-navy-deep); }
+
+.grws-btn--outline {
+  background: transparent;
+  color: var(--grws-navy);
+  border: 1.5px solid var(--grws-border-strong);
+}
+.grws-btn--outline:hover { border-color: var(--grws-navy); }
+
+.grws-btn--ghost-light {
+  background: transparent;
+  color: rgba(255,255,255,0.85);
+  border: 1px solid rgba(255,255,255,0.28);
+}
+.grws-btn--ghost-light:hover { color: var(--grws-branco); border-color: var(--grws-branco); }
+
+.grws-btn--sm { padding: 10px 18px; font-size: 13px; }
+.grws-btn--lg { padding: 18px 36px; font-size: 15px; }
+
+/* ------------------ Card ------------------ */
+.grws-card {
+  background: var(--grws-surface);
+  border: 1px solid var(--grws-border);
+  border-radius: var(--grws-radius-md);
+  padding: 28px;
+  transition: box-shadow var(--grws-duration-2) var(--grws-ease),
+              border-color var(--grws-duration-2) var(--grws-ease),
+              transform var(--grws-duration-2) var(--grws-ease);
+}
+.grws-card:hover {
+  box-shadow: var(--grws-shadow-md);
+  border-color: #CFD8EC;
+  transform: translateY(-2px);
+}
+.grws-card__eyebrow {
+  font-family: var(--grws-font-display);
+  font-size: 11px; font-weight: 800; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--grws-azul); margin-bottom: 12px;
+}
+.grws-card__title {
+  font-family: var(--grws-font-display);
+  font-size: 18px; font-weight: 400;
+  letter-spacing: .04em; text-transform: uppercase;
+  color: var(--grws-navy); margin-bottom: 8px; line-height: 1.2;
+}
+.grws-card__title b, .grws-card__title strong { font-weight: 800; }
+.grws-card__body {
+  font-family: var(--grws-font-body);
+  font-size: 14px; color: var(--grws-text-muted); line-height: 1.6;
+  text-transform: none; letter-spacing: 0;
+}
+
+/* ------------------ Input ------------------ */
+.grws-input {
+  width: 100%;
+  font-family: var(--grws-font-body);
+  font-size: 15px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--grws-border);
+  border-radius: var(--grws-radius);
+  background: var(--grws-surface);
+  color: var(--grws-text);
+  transition: border-color var(--grws-duration-2) var(--grws-ease),
+              box-shadow var(--grws-duration-2) var(--grws-ease);
+}
+.grws-input::placeholder { color: var(--grws-text-subtle); }
+.grws-input:focus {
+  outline: none;
+  border-color: var(--grws-azul);
+  box-shadow: var(--grws-shadow-focus);
+}
+.grws-label {
+  display: block;
+  font-family: var(--grws-font-display);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--grws-navy);
+  margin-bottom: 8px;
+}
+
+/* ------------------ Badge ------------------ */
+.grws-badge {
+  display: inline-flex; align-items:center; gap:6px;
+  font-family: var(--grws-font-display);
+  font-size: 11px; font-weight: 800;
+  letter-spacing: .1em; text-transform: uppercase;
+  padding: 5px 11px; border-radius: var(--grws-radius-pill);
+}
+.grws-badge--azul    { background: var(--grws-tint-azul);    color: var(--grws-azul); }
+.grws-badge--verde   { background: var(--grws-tint-verde);   color: #0E8A3E; }
+.grws-badge--laranja { background: var(--grws-tint-laranja); color: #B35B00; }
+.grws-badge--navy    { background: var(--grws-tint-navy);    color: var(--grws-navy); }
+.grws-badge--neutral { background: var(--grws-cinza-100);    color: var(--grws-cinza-700); }
+
+/* ------------------ Section scaffold ------------------ */
+.grws-section { padding: var(--grws-sp-20) var(--grws-sp-16); }
+.grws-section--dark {
+  background: var(--grws-grad-navy);
+  color: var(--grws-text-invert);
+}
+.grws-section--dark h1,
+.grws-section--dark h2,
+.grws-section--dark h3,
+.grws-section--dark h4 { color: var(--grws-branco); }
+
+.grws-container { max-width: 1200px; margin: 0 auto; }
+
+/* ------------------ Divider ------------------ */
+.grws-divider {
+  height: 1px; background: var(--grws-border);
+  border: 0; margin: var(--grws-sp-8) 0;
+}
+.grws-divider--on-dark { background: rgba(255,255,255,0.12); }
+
+/* ------------------ Accent bar ------------------ */
+/* Usar como detalhe inline, NÃO como left-border accent de container. */
+.grws-accent-bar {
+  display: inline-block;
+  width: 48px; height: 4px; border-radius: 2px;
+  background: var(--grws-grad-laranja);
+}
+.grws-accent-bar--azul  { background: var(--grws-grad-azul); }
+.grws-accent-bar--verde { background: var(--grws-grad-verde); }
