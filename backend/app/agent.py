@@ -92,6 +92,7 @@ _GUARDRAIL = (
     "conversa. Quando faltar um dado, diga claramente o que falta e, se útil, "
     "trabalhe com uma premissa explícita — nunca finja consultar sistemas, "
     "acessar URLs ou inventar números."
+    "\n\n[Idioma] Pense (raciocínio) e escreva SEMPRE em português do Brasil."
 )
 
 # Assistant-level / result-level error codes worth retrying.
@@ -231,6 +232,7 @@ async def _stream_agent(
     bubble_id: str,
     agent_ids: list,
     capture: Optional[list] = None,
+    as_reasoning: bool = False,
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """Stream ONE bubble's contribution.
 
@@ -239,6 +241,12 @@ async def _stream_agent(
     Every event carries the same `bubbleId` so the frontend routes deltas to the
     right bubble even when one agent speaks more than once in a turn (opening +
     final).
+
+    When `as_reasoning` is set, the agent's ANSWER is streamed as *thinking*
+    (shown in the collapsible reasoning block, in PT-BR) and its real internal
+    thinking — which Opus tends to emit in English — is dropped. The answer is
+    still captured to feed the joint synthesis. Used for consulted specialists,
+    whose bubble shows only the reasoning, never a standalone answer.
 
     Emits: agent_begin → (status|thinking|text|meta)* → agent_done. Reasoning
     (thinking) streams live. If `capture` is given, the final answer text is
@@ -273,7 +281,8 @@ async def _stream_agent(
                             yield {"type": "status", "bubbleId": bubble_id, "text": "Raciocinando..."}
                         elif btype == "text":
                             in_thinking = False
-                            yield {"type": "status", "bubbleId": bubble_id, "text": "Escrevendo resposta..."}
+                            yield {"type": "status", "bubbleId": bubble_id,
+                                   "text": "Raciocinando..." if as_reasoning else "Escrevendo resposta..."}
                     elif etype == "content_block_delta":
                         delta = ev.get("delta", {}) or {}
                         dtype = delta.get("type")
@@ -283,10 +292,11 @@ async def _stream_agent(
                                 streamed_delta = True
                                 emitted_text = True
                                 answer_parts.append(txt)
-                                yield {"type": "text", "bubbleId": bubble_id, "text": txt}
+                                yield {"type": "thinking" if as_reasoning else "text",
+                                       "bubbleId": bubble_id, "text": txt}
                         elif dtype == "thinking_delta":
                             think = delta.get("thinking", "")
-                            if think:
+                            if think and not as_reasoning:
                                 yield {"type": "thinking", "bubbleId": bubble_id, "text": think}
                     continue
 
@@ -305,8 +315,9 @@ async def _stream_agent(
                             if isinstance(block, TextBlock) and block.text:
                                 emitted_text = True
                                 answer_parts.append(block.text)
-                                yield {"type": "text", "bubbleId": bubble_id, "text": block.text}
-                            elif isinstance(block, ThinkingBlock) and getattr(block, "thinking", ""):
+                                yield {"type": "thinking" if as_reasoning else "text",
+                                       "bubbleId": bubble_id, "text": block.text}
+                            elif isinstance(block, ThinkingBlock) and getattr(block, "thinking", "") and not as_reasoning:
                                 yield {"type": "thinking", "bubbleId": bubble_id, "text": block.thinking}
                     continue
 
@@ -480,20 +491,22 @@ async def _orchestrate(
     yield {"type": "text", "bubbleId": "open", "text": opening}
     yield {"type": "agent_done", "bubbleId": "open"}
 
-    # 2) Each specialist thinks out loud and leaves a SHORT note (captured for
-    #    the joint answer, not presented as a full standalone reply).
+    # 2) Each specialist only THINKS out loud (in PT-BR). Its answer is captured
+    #    to feed the joint synthesis but is NOT shown on its own — the bubble
+    #    shows reasoning only.
     consult_prompt = (
-        prompt + "\n\n[Instrução] Pense brevemente e deixe uma CONTRIBUIÇÃO CURTA "
-        "(no máximo um parágrafo) com o essencial da sua especialidade. Suas notas "
-        "serão integradas pelo WaterBrain numa resposta conjunta — não feche a "
-        "resposta completa."
+        prompt + "\n\n[Instrução] Pense em português e produza uma análise objetiva "
+        "e focada na sua especialidade, em TEXTO CORRIDO (sem títulos, listas ou "
+        "markdown). Suas conclusões serão integradas pelo WaterBrain numa resposta "
+        "conjunta."
     )
     results = []
     for sp in chosen:
         cap: list = []
         sp_think = {**sp, "thinkingEnabled": True}  # always surface the "thinking"
         async for ev in _stream_agent(
-            sp_think, consult_prompt, cfg, bubble_id=f"sp-{sp['id']}", agent_ids=[sp["id"]], capture=cap
+            sp_think, consult_prompt, cfg, bubble_id=f"sp-{sp['id']}",
+            agent_ids=[sp["id"]], capture=cap, as_reasoning=True,
         ):
             yield ev
         results.append((sp, cap[0] if cap else ""))

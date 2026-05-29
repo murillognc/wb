@@ -572,6 +572,93 @@ function ThinkingLabel() {
   );
 }
 
+/* ============================================================
+   MINIMAL MARKDOWN — renders a safe subset (headings, bold,
+   italic, inline code, code fences, lists, paragraphs) to React
+   elements. No HTML injection: all text goes through React.
+   ============================================================ */
+function mdInline(text, kp) {
+  const out = [];
+  let last = 0, k = 0;
+  const re = /(\*\*([^*]+)\*\*|__([^_]+)__|\*([^*\n]+)\*|_([^_\n]+)_|`([^`]+)`)/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    if (m[2] || m[3]) out.push(<strong key={kp + "-" + k}>{m[2] || m[3]}</strong>);
+    else if (m[4] || m[5]) out.push(<em key={kp + "-" + k}>{m[4] || m[5]}</em>);
+    else if (m[6]) out.push(<code key={kp + "-" + k} className="wb-md-code">{m[6]}</code>);
+    last = m.index + m[0].length;
+    k++;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
+function renderMarkdown(src) {
+  const lines = (src || "").replace(/\r\n/g, "\n").split("\n");
+  const blocks = [];
+  let i = 0, key = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line.trim()) { i++; continue; }
+
+    if (/^\s*```/.test(line)) {
+      i++;
+      const code = [];
+      while (i < lines.length && !/^\s*```/.test(lines[i])) { code.push(lines[i]); i++; }
+      i++;
+      blocks.push(<pre key={key++} className="wb-md-pre"><code>{code.join("\n")}</code></pre>);
+      continue;
+    }
+
+    const h = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (h) {
+      blocks.push(
+        <div key={key++} className={"wb-md-h wb-md-h" + h[1].length}>{mdInline(h[2], "h" + key)}</div>
+      );
+      i++;
+      continue;
+    }
+
+    if (/^\s*[-*+]\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*[-*+]\s+/, "")); i++;
+      }
+      blocks.push(
+        <ul key={key++} className="wb-md-ul">
+          {items.map((it, idx) => <li key={idx}>{mdInline(it, "u" + key + "-" + idx)}</li>)}
+        </ul>
+      );
+      continue;
+    }
+
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*\d+\.\s+/, "")); i++;
+      }
+      blocks.push(
+        <ol key={key++} className="wb-md-ol">
+          {items.map((it, idx) => <li key={idx}>{mdInline(it, "o" + key + "-" + idx)}</li>)}
+        </ol>
+      );
+      continue;
+    }
+
+    const para = [];
+    while (
+      i < lines.length && lines[i].trim() &&
+      !/^(#{1,6})\s+/.test(lines[i]) &&
+      !/^\s*[-*+]\s+/.test(lines[i]) &&
+      !/^\s*\d+\.\s+/.test(lines[i]) &&
+      !/^\s*```/.test(lines[i])
+    ) { para.push(lines[i]); i++; }
+    blocks.push(<p key={key++} className="wb-md-p">{mdInline(para.join("\n"), "p" + key)}</p>);
+  }
+  return blocks;
+}
+
 function AgentReply({ msg }) {
   // Strip the markdown code fences the backend wraps cache info in.
   const cache = (msg.cacheInfo || "").replace(/```/g, "").trim();
@@ -622,7 +709,7 @@ function AgentReply({ msg }) {
 
         {msg.text && (
           <div className="wb-msg-agent__text">
-            {msg.text}
+            {renderMarkdown(msg.text)}
             {msg.streaming && <span className="wb-caret-blink" aria-hidden="true">▋</span>}
           </div>
         )}

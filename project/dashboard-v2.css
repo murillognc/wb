@@ -1972,11 +1972,15 @@ body.is-resizing * {
   flex-shrink: 0;
   align-items: flex-start;
 }
-/* Overlap the discs slightly when more than one agent shares a bubble */
+.wb-msg-agent__avatars .wb-mono { position: relative; z-index: 1; }
+/* Overlap the discs slightly when more than one agent shares a bubble; each
+   later disc sits fully ABOVE the previous one (incl. its glow). */
 .wb-msg-agent__avatars .wb-mono + .wb-mono {
   margin-left: -10px;
-  box-shadow: 0 0 0 2px var(--wb-bg);   /* ring of the background to separate them */
+  z-index: 2;
+  box-shadow: 0 0 0 2.5px var(--wb-bg);   /* background ring carves it out cleanly */
 }
+.wb-msg-agent__avatars .wb-mono + .wb-mono + .wb-mono { z-index: 3; }
 .wb-msg-agent__name {
   display: flex;
   flex-wrap: wrap;
@@ -1986,4 +1990,60 @@ body.is-resizing * {
   color: var(--wb-text-subtle);
   font-weight: 400;
   margin: 0 2px;
+}
+
+/* ============================================================
+   MARKDOWN — rendered inside agent replies
+   ============================================================ */
+.wb-msg-agent__text .wb-md-p { margin: 0 0 10px; }
+.wb-msg-agent__text > .wb-md-p:last-child,
+.wb-msg-agent__text > .wb-md-ul:last-child,
+.wb-msg-agent__text > .wb-md-ol:last-child { margin-bottom: 0; }
+.wb-msg-agent__text .wb-md-h {
+  font-family: var(--grws-font-display);
+  font-weight: 700;
+  color: var(--wb-text-strong);
+  line-height: 1.25;
+  margin: 16px 0 8px;
+}
+.wb-msg-agent__text .wb-md-h:first-child { margin-top: 0; }
+.wb-msg-agent__text .wb-md-h1 { font-size: 19px; }
+.wb-msg-agent__text .wb-md-h2 { font-size: 17px; }
+.wb-msg-agent__text .wb-md-h3 { font-size: 15px; }
+.wb-msg-agent__text .wb-md-h4,
+.wb-msg-agent__text .wb-md-h5,
+.wb-msg-agent__text .wb-md-h6 {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--wb-text-muted);
+}
+.wb-msg-agent__text .wb-md-ul,
+.wb-msg-agent__text .wb-md-ol { margin: 0 0 10px; padding-left: 22px; }
+.wb-msg-agent__text .wb-md-ul { list-style: disc; }
+.wb-msg-agent__text .wb-md-ol { list-style: decimal; }
+.wb-msg-agent__text .wb-md-ul li,
+.wb-msg-agent__text .wb-md-ol li { margin: 3px 0; }
+.wb-msg-agent__text strong { font-weight: 700; color: var(--wb-text-strong); }
+.wb-msg-agent__text em { font-style: italic; }
+.wb-msg-agent__text .wb-md-code {
+  font-family: var(--wb-font-mono);
+  font-size: 0.88em;
+  background: var(--wb-panel);
+  border: 1px solid var(--wb-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.wb-msg-agent__text .wb-md-pre {
+  background: var(--wb-panel);
+  border: 1px solid var(--wb-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  margin: 0 0 10px;
+}
+.wb-msg-agent__text .wb-md-pre code {
+  font-family: var(--wb-font-mono);
+  font-size: 12.5px;
+  color: var(--wb-text);
 }
