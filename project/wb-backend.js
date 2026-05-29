@@ -1,0 +1,119 @@
+/* WaterBrain backend client (plain JS, no JSX).
+   Exposes window.WBApi with config + streaming chat helpers. The dashboard is
+   served by the FastAPI backend, so all calls are same-origin ("/api/..."). */
+(function () {
+  "use strict";
+
+  async function getConfig() {
+    const res = await fetch("/api/config", { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error("config " + res.status);
+    return res.json();
+  }
+
+  async function saveConfig(payload) {
+    const res = await fetch("/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("config save " + res.status);
+    return res.json();
+  }
+
+  function dispatch(ev, h) {
+    switch (ev.type) {
+      case "status":
+        if (h.onStatus) h.onStatus(ev.text, !!ev.done);
+        break;
+      case "thinking":
+        if (h.onThinking) h.onThinking(ev.text);
+        break;
+      case "text":
+        if (h.onText) h.onText(ev.text);
+        break;
+      case "meta":
+        if (h.onMeta) h.onMeta({ sessionId: ev.sessionId, cacheInfo: ev.cacheInfo });
+        break;
+      case "error":
+        if (h.onError) h.onError(ev.message);
+        break;
+      default:
+        break;
+    }
+  }
+
+  /* Streams a persona reply. `h` is a bag of callbacks:
+     onStatus(text, done), onThinking(text), onText(chunk),
+     onMeta({sessionId, cacheInfo}), onError(message), onDone(). */
+  async function streamChat(req, h) {
+    h = h || {};
+    let finished = false;
+    const finish = function () {
+      if (finished) return;
+      finished = true;
+      if (h.onDone) h.onDone();
+    };
+
+    let res;
+    try {
+      res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          persona_id: req.personaId,
+          message: req.message,
+          history: req.history || [],
+        }),
+      });
+    } catch (err) {
+      if (h.onError) h.onError("Nao foi possivel falar com o servidor. Ele esta rodando?");
+      finish();
+      return;
+    }
+
+    if (!res.ok || !res.body) {
+      if (h.onError) h.onError("Falha ao conectar ao servidor (HTTP " + res.status + ").");
+      finish();
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        buffer += decoder.decode(chunk.value, { stream: true });
+
+        let sep;
+        while ((sep = buffer.indexOf("\n\n")) >= 0) {
+          const rawEvent = buffer.slice(0, sep);
+          buffer = buffer.slice(sep + 2);
+          const dataLine = rawEvent
+            .split("\n")
+            .find(function (l) { return l.indexOf("data:") === 0; });
+          if (!dataLine) continue;
+          let parsed;
+          try {
+            parsed = JSON.parse(dataLine.slice(5).trim());
+          } catch (e) {
+            continue;
+          }
+          if (parsed.type === "done") {
+            finish();
+          } else {
+            dispatch(parsed, h);
+          }
+        }
+      }
+    } catch (err) {
+      if (h.onError) h.onError("Conexao interrompida durante a resposta.");
+    } finally {
+      finish();
+    }
+  }
+
+  window.WBApi = { getConfig: getConfig, saveConfig: saveConfig, streamChat: streamChat };
+})();

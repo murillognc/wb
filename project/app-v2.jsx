@@ -1,5 +1,5 @@
-/* global React, ReactDOM, useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakToggle,
-   PERSONAS_V2, HeaderV2, Roster, Query, FooterV2 */
+/* global React, ReactDOM, WBApi, useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakToggle,
+   PERSONAS_V2, HeaderV2, SettingsModal, Roster, Query, FooterV2 */
 
 const { useState, useEffect, useRef, useCallback } = React;
 
@@ -13,24 +13,38 @@ const ROSTER_W_MIN = 320;
 const ROSTER_W_MAX = 640;
 const ROSTER_W_DEFAULT = 440;
 
-// Generic placeholder replies for demo
-const DEMO_REPLIES = [
-  "Estou analisando os dados. Volto em instantes com uma síntese.",
-  "Boa pergunta. Cruzando com os indicadores e trazendo o contexto relevante.",
-  "Acionando o time. Em breve trago uma resposta consolidada.",
-  "Vou olhar isso por múltiplos ângulos. Um momento.",
-  "Levantando os pontos relevantes — segue logo abaixo.",
-];
-
 function AppV2() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS_V2);
   const [time, setTime] = useState(new Date());
   const [selectedId, setSelectedId] = useState("executivo");
 
+  // === Backend config (API key lives server-side; we only learn keySet etc.) ===
+  const [config, setConfig] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const configRef = useRef(null);
+  useEffect(() => { configRef.current = config; }, [config]);
+
+  useEffect(() => {
+    let alive = true;
+    WBApi.getConfig()
+      .then((c) => {
+        if (!alive) return;
+        setConfig(c);
+        if (!c.keySet) setSettingsOpen(true); // first run → prompt for the key
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   // === Chat state ===
   const [messages, setMessages] = useState([]);
   const [joinedAgents, setJoinedAgents] = useState([]);
   const [thinkingIds, setThinkingIds] = useState([]); // personas currently “thinking”
+
+  // query() is stateless, so we replay recent turns with each request. A ref
+  // keeps the latest thread available inside handleSend without stale closures.
+  const messagesRef = useRef([]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   // Per-persona keywords to detect when the user is calling that agent
   const PERSONA_KEYWORDS = {
@@ -160,17 +174,52 @@ function AppV2() {
     const thinkers = [selectedId, ...called.filter((id) => headerIds.has(id) && id !== selectedId)];
     setThinkingIds((prev) => Array.from(new Set([...prev, ...thinkers])));
 
-    // 4. Primary agent reply — stops primary thinking when it lands
-    setTimeout(() => {
-      const reply = DEMO_REPLIES[Math.floor(Math.random() * DEMO_REPLIES.length)];
-      setMessages((prev) => [...prev, {
-        id: `r-${stamp}`,
-        type: "reply",
-        agent: primaryAtSend,
-        text: reply,
-      }]);
+    // 4. Primary agent reply — streamed live from the backend (Agent SDK).
+    //    The header keeps showing "Pensando…" until the first token lands.
+    const replyId = `r-${stamp}`;
+    let started = false;
+    let acc = "";
+    let reasoning = "";
+    const stopPrimaryThinking = () =>
       setThinkingIds((prev) => prev.filter((id) => id !== primaryAtSend.id));
-    }, 1400);
+    const updateReply = (patch) =>
+      setMessages((prev) => prev.map((m) => (m.id === replyId ? { ...m, ...patch } : m)));
+    const ensureReply = () => {
+      if (started) return;
+      started = true;
+      stopPrimaryThinking();
+      setMessages((prev) => [
+        ...prev,
+        { id: replyId, type: "reply", agent: primaryAtSend, text: "", streaming: true },
+      ]);
+    };
+
+    // Replay the visible thread (user + agent turns) so the persona has context.
+    const history = messagesRef.current
+      .filter((m) => (m.type === "user" || m.type === "reply") && !m.error && m.text)
+      .map((m) => ({ role: m.type === "user" ? "user" : "assistant", text: m.text }));
+
+    WBApi.streamChat(
+      { personaId: primaryAtSend.id, message: text, history },
+      {
+        onText: (chunk) => { ensureReply(); acc += chunk; updateReply({ text: acc }); },
+        onThinking: (chunk) => { ensureReply(); reasoning += chunk; updateReply({ thinking: reasoning }); },
+        onMeta: ({ cacheInfo }) => {
+          if (cacheInfo) updateReply({ cacheInfo });
+        },
+        onError: (errMsg) => {
+          ensureReply();
+          updateReply({ text: acc || errMsg, error: !acc, streaming: false });
+          stopPrimaryThinking();
+          const cfg = configRef.current;
+          if (cfg && !cfg.keySet) setSettingsOpen(true);
+        },
+        onDone: () => {
+          if (started) updateReply({ streaming: false });
+          else stopPrimaryThinking(); // nothing streamed (e.g. early error)
+        },
+      }
+    );
 
     // 5. Side-agents settle down after a beat (no reply in demo)
     thinkers
@@ -185,7 +234,11 @@ function AppV2() {
 
   return (
     <div className="wb-app">
-      <HeaderV2 time={time} />
+      <HeaderV2
+        time={time}
+        keySet={!config || config.keySet}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
 
       <div
         className="wb-body"
@@ -217,6 +270,14 @@ function AppV2() {
       </div>
 
       <FooterV2 />
+
+      {settingsOpen && (
+        <SettingsModal
+          config={config}
+          onClose={() => setSettingsOpen(false)}
+          onSaved={(next) => setConfig(next)}
+        />
+      )}
 
       <TweaksPanel>
         <TweakSection label="Tema" />

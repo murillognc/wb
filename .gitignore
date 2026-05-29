@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+backend/.venv/
+
+# Secrets / local config
+backend/.env
+.env
+
+# OS / editor
+.DS_Store

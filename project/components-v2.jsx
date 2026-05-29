@@ -98,7 +98,7 @@ const QUICK_PROMPTS = {
 /* ============================================================
    HEADER
    ============================================================ */
-function HeaderV2({ time }) {
+function HeaderV2({ time, keySet = true, onOpenSettings }) {
   const timeStr = useMemo(() => {
     const h = time.getHours().toString().padStart(2, "0");
     const m = time.getMinutes().toString().padStart(2, "0");
@@ -135,6 +135,20 @@ function HeaderV2({ time }) {
       <div className="wb-tele"></div>
 
       <div className="wb-user">
+        <button
+          type="button"
+          className={"wb-settings-btn" + (keySet ? "" : " is-warn")}
+          onClick={onOpenSettings}
+          title={keySet ? "Configurações" : "Configure a chave da API"}
+          aria-label="Configurações"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 5.2a2.8 2.8 0 100 5.6 2.8 2.8 0 000-5.6z" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M8 1.5l.5 1.6a5.4 5.4 0 011.4.6l1.5-.8 1.2 1.2-.8 1.5q.36.66.6 1.4l1.6.5v1.7l-1.6.5a5.4 5.4 0 01-.6 1.4l.8 1.5-1.2 1.2-1.5-.8a5.4 5.4 0 01-1.4.6L8 14.5l-.5-1.6a5.4 5.4 0 01-1.4-.6l-1.5.8-1.2-1.2.8-1.5a5.4 5.4 0 01-.6-1.4L1.5 8.5V6.8l1.6-.5q.24-.74.6-1.4l-.8-1.5 1.2-1.2 1.5.8q.66-.36 1.4-.6L8 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+          </svg>
+          {!keySet && <span className="wb-settings-btn__dot" aria-hidden="true"></span>}
+        </button>
+        <span className="wb-brand__div"></span>
         <div className="wb-user__info">
           <span className="wb-user__name">Murillo Gonçalves</span>
           <span className="wb-user__role">DIRETORIA · GR-WATER</span>
@@ -142,6 +156,119 @@ function HeaderV2({ time }) {
         <div className="wb-user__avatar">Mg</div>
       </div>
     </header>
+  );
+}
+
+/* ============================================================
+   SETTINGS MODAL — paste the Anthropic API key + debug valves
+   ============================================================ */
+function SettingsModal({ config, onClose, onSaved }) {
+  const [apiKey, setApiKey] = useState("");
+  const [displayThinking, setDisplayThinking] = useState(!!(config && config.displayThinking));
+  const [showCacheInfo, setShowCacheInfo] = useState(config ? config.showCacheInfo !== false : true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState(null);
+
+  const keySet = !!(config && config.keySet);
+  const modelName = config && config.model ? config.model.name : "Claude Opus 4.6";
+
+  async function save() {
+    setSaving(true);
+    setStatus(null);
+    const payload = { display_thinking: displayThinking, show_cache_info: showCacheInfo };
+    if (apiKey.trim()) payload.api_key = apiKey.trim();
+    try {
+      const next = await window.WBApi.saveConfig(payload);
+      setApiKey("");
+      setStatus({ ok: true, msg: "Configurações salvas." });
+      if (onSaved) onSaved(next);
+    } catch (e) {
+      setStatus({ ok: false, msg: "Não foi possível salvar. O servidor está rodando?" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="wb-modal-overlay" onClick={onClose}>
+      <div className="wb-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Configurações">
+        <div className="wb-modal__head">
+          <h2 className="wb-modal__title">Configurações</h2>
+          <button className="wb-modal__x" onClick={onClose} aria-label="Fechar">✕</button>
+        </div>
+
+        <div className="wb-modal__body">
+          <div className="wb-field">
+            <label className="wb-field__label" htmlFor="wb-key">Chave da API Anthropic</label>
+            <input
+              id="wb-key"
+              className="wb-field__input"
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={keySet ? "•••••••••••••• (já configurada — cole para trocar)" : "sk-ant-..."}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+            />
+            <p className="wb-field__hint">
+              {keySet ? (
+                <><span className="wb-field__ok">●</span> Uma chave já está salva no servidor.</>
+              ) : (
+                <><span className="wb-field__warn">●</span> Nenhuma chave configurada. A chave fica só no servidor — nunca no navegador.</>
+              )}
+            </p>
+          </div>
+
+          <div className="wb-field__row">
+            <div className="wb-field__row-main">
+              <span className="wb-field__label">Mostrar raciocínio</span>
+              <span className="wb-field__sub">Expõe o pensamento do modelo no chat (debug).</span>
+            </div>
+            <button
+              type="button"
+              className="wb-switch"
+              data-on={displayThinking ? "1" : "0"}
+              role="switch"
+              aria-checked={displayThinking}
+              onClick={() => setDisplayThinking((v) => !v)}
+            ><i /></button>
+          </div>
+
+          <div className="wb-field__row">
+            <div className="wb-field__row-main">
+              <span className="wb-field__label">Mostrar uso de cache</span>
+              <span className="wb-field__sub">Anexa tokens e cache hit/miss ao fim da resposta.</span>
+            </div>
+            <button
+              type="button"
+              className="wb-switch"
+              data-on={showCacheInfo ? "1" : "0"}
+              role="switch"
+              aria-checked={showCacheInfo}
+              onClick={() => setShowCacheInfo((v) => !v)}
+            ><i /></button>
+          </div>
+
+          <div className="wb-modal__meta">
+            <div className="wb-modal__meta-row"><span>Modelo</span><b>{modelName}</b></div>
+            <div className="wb-modal__meta-row"><span>Contexto</span><b>1M tokens</b></div>
+            <div className="wb-modal__meta-row"><span>Raciocínio</span><b>Sempre ativo · 60k</b></div>
+            <div className="wb-modal__meta-row"><span>Cache</span><b>Agressivo</b></div>
+          </div>
+
+          {status && (
+            <div className={"wb-modal__status" + (status.ok ? " is-ok" : " is-err")}>{status.msg}</div>
+          )}
+        </div>
+
+        <div className="wb-modal__foot">
+          <button className="wb-modal__btn wb-modal__btn--ghost" onClick={onClose}>Fechar</button>
+          <button className="wb-modal__btn wb-modal__btn--primary" onClick={save} disabled={saving}>
+            {saving ? "Salvando…" : "Salvar"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -376,14 +503,24 @@ function ThinkingLabel() {
 }
 
 function AgentReply({ msg }) {
+  // Strip the markdown code fences the backend wraps cache info in — the
+  // dashboard isn't a markdown renderer, so show it as a plain mono footer.
+  const cache = (msg.cacheInfo || "").replace(/```/g, "").trim();
   return (
-    <div className="wb-msg wb-msg-agent">
+    <div className={"wb-msg wb-msg-agent" + (msg.error ? " wb-msg-agent--error" : "")}>
       <Mono persona={msg.agent} size="md" />
       <div className="wb-msg-agent__body">
         <div className="wb-msg-agent__name" style={{ color: msg.agent.color }}>
           {msg.agent.role}
         </div>
-        <div className="wb-msg-agent__text">{msg.text}</div>
+        {msg.thinking && (
+          <div className="wb-msg-agent__reasoning">{msg.thinking}</div>
+        )}
+        <div className="wb-msg-agent__text">
+          {msg.text}
+          {msg.streaming && <span className="wb-caret-blink" aria-hidden="true">▋</span>}
+        </div>
+        {cache && <pre className="wb-msg-agent__meta">{cache}</pre>}
       </div>
     </div>
   );
@@ -583,6 +720,7 @@ Object.assign(window, {
   PERSONAS_V2,
   RECENTS_V2,
   HeaderV2,
+  SettingsModal,
   Roster,
   Query,
   FooterV2,
