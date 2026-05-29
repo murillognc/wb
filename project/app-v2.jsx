@@ -1,5 +1,5 @@
 /* global React, ReactDOM, WBApi, useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakToggle,
-   PERSONAS_V2, HeaderV2, SettingsModal, Roster, Query, FooterV2, AdminScreen */
+   PERSONAS_V2, HeaderV2, SettingsModal, Roster, Query, FooterV2, AdminScreen, DashboardScreen */
 
 const { useState, useEffect, useRef, useCallback } = React;
 
@@ -40,6 +40,7 @@ function AppV2() {
   // === Agents (source of truth = backend; PERSONAS_V2 is a fallback seed) ===
   const [agents, setAgents] = useState(PERSONAS_V2);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [dashboardOpen, setDashboardOpen] = useState(false);
   const enabledAgents = agents.filter((a) => a.enabled !== false);
   const enabledRef = useRef(enabledAgents);
   useEffect(() => { enabledRef.current = enabledAgents; }, [enabledAgents]);
@@ -286,6 +287,7 @@ function AppV2() {
           showRecent={t.showContinue}
           personas={enabledAgents}
           onCollapse={toggleSidebar}
+          onOpenDashboard={() => setDashboardOpen(true)}
           keySet={!config || config.keySet}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenAdmin={() => setAdminOpen(true)}
@@ -334,6 +336,13 @@ function AppV2() {
           onChanged={loadAgents}
           onConfigSaved={(next) => setConfig(next)}
           onClose={() => setAdminOpen(false)}
+        />
+      )}
+
+      {dashboardOpen && (
+        <DashboardScreen
+          agents={enabledAgents}
+          onClose={() => setDashboardOpen(false)}
         />
       )}
 

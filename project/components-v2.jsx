@@ -349,7 +349,7 @@ function Caret({ open }) {
 }
 
 function Roster({ selectedId, onSelect, showRecent, personas = PERSONAS_V2, onCollapse,
-                  width, keySet = true, onOpenSettings, onOpenAdmin }) {
+                  width, keySet = true, onOpenSettings, onOpenAdmin, onOpenDashboard }) {
   const [tip, setTip] = React.useState(null);
   const [agentsOpen, setAgentsOpen] = React.useState(() => {
     try { return localStorage.getItem("wb-agents-open") !== "0"; } catch (_) { return true; }
@@ -411,6 +411,18 @@ function Roster({ selectedId, onSelect, showRecent, personas = PERSONAS_V2, onCo
           )}
         </div>
       </div>
+
+      <nav className="wb-side-nav">
+        <button type="button" className="wb-side-nav-item" onClick={onOpenDashboard}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <rect x="2" y="2" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.3" />
+            <rect x="8.5" y="2" width="5.5" height="3" rx="1.2" stroke="currentColor" strokeWidth="1.3" />
+            <rect x="8.5" y="6.5" width="5.5" height="7.5" rx="1.2" stroke="currentColor" strokeWidth="1.3" />
+            <rect x="2" y="9.5" width="5.5" height="4.5" rx="1.2" stroke="currentColor" strokeWidth="1.3" />
+          </svg>
+          <span>Dashboard</span>
+        </button>
+      </nav>
 
       <div className="wb-roster__head">
         <button
