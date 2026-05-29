@@ -1839,7 +1839,7 @@ body.is-resizing * {
    (grid-template-rows is set on .wb-roster above.) */
 
 .wb-side-head {
-  padding: 16px 22px 14px;
+  padding: 15px 18px;
   border-bottom: 1px solid var(--wb-rule);
 }
 .wb-side-brand {
@@ -1848,25 +1848,20 @@ body.is-resizing * {
   justify-content: space-between;
   gap: 10px;
 }
+/* Wordmark is a link back to the homepage */
 .wb-side-brand__id {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
-}
-.wb-side-co {
-  display: inline-flex;
-  align-items: center;
-  height: 18px;
-  margin-top: 11px;
-  opacity: 0.72;
-  transition: opacity 200ms ease;
   text-decoration: none;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  border-radius: 8px;
+  transition: background 150ms;
 }
-.wb-side-co:hover { opacity: 1; }
-/* Only override the size — leave display to the --dark/--light theme rules,
-   otherwise both logos would show at once. */
-.wb-side-co .wb-brand__co-img { height: 18px; width: auto; }
+.wb-side-brand__id:hover { background: var(--wb-row-hover); }
+.wb-side-brand__id:focus-visible { outline: 1px solid var(--wb-accent); outline-offset: 1px; }
 
 /* Generic icon button (panel toggle / open) — matches settings buttons */
 .wb-icon-btn {

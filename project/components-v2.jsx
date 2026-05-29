@@ -387,7 +387,7 @@ function Roster({ selectedId, onSelect, showRecent, personas = PERSONAS_V2, onCo
     <aside className="wb-roster" style={width ? { width } : undefined} onMouseLeave={handleLeave}>
       <div className="wb-side-head">
         <div className="wb-side-brand">
-          <div className="wb-side-brand__id">
+          <a className="wb-side-brand__id" href="/" title="Ir para a página inicial" aria-label="WaterBrain — início">
             <span className="wb-brand__mark">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path
@@ -397,7 +397,7 @@ function Roster({ selectedId, onSelect, showRecent, personas = PERSONAS_V2, onCo
               </svg>
             </span>
             <span className="wb-brand__name">Water<b>Brain</b></span>
-          </div>
+          </a>
           {onCollapse && (
             <button
               type="button"
@@ -410,23 +410,6 @@ function Roster({ selectedId, onSelect, showRecent, personas = PERSONAS_V2, onCo
             </button>
           )}
         </div>
-        <a
-          href="WaterBrain Homepage.html"
-          className="wb-side-co"
-          title="GR Water Solutions"
-          aria-label="GR Water Solutions"
-        >
-          <img
-            className="wb-brand__co-img wb-brand__co-img--dark"
-            src="assets/logo-grws-fonte-branca.png"
-            alt="GR Water Solutions"
-          />
-          <img
-            className="wb-brand__co-img wb-brand__co-img--light"
-            src="assets/logo-grws-fonte-preta.png"
-            alt="GR Water Solutions"
-          />
-        </a>
       </div>
 
       <div className="wb-roster__head">
