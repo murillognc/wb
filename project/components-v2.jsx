@@ -620,6 +620,39 @@ function renderMarkdown(src) {
       continue;
     }
 
+    // table: a row with pipes followed by a separator row (|---|:--:|...)
+    if (
+      line.indexOf("|") !== -1 && i + 1 < lines.length &&
+      /^[\s|:-]+$/.test(lines[i + 1]) && lines[i + 1].indexOf("-") !== -1
+    ) {
+      const cells = (l) => {
+        let s = l.trim();
+        if (s.startsWith("|")) s = s.slice(1);
+        if (s.endsWith("|")) s = s.slice(0, -1);
+        return s.split("|").map((c) => c.trim());
+      };
+      const head = cells(line);
+      i += 2; // skip header + separator
+      const rows = [];
+      while (i < lines.length && lines[i].trim() && lines[i].indexOf("|") !== -1) {
+        rows.push(cells(lines[i]));
+        i++;
+      }
+      blocks.push(
+        <table key={key++} className="wb-md-table">
+          <thead>
+            <tr>{head.map((c, ci) => <th key={ci}>{mdInline(c, "th" + key + "-" + ci)}</th>)}</tr>
+          </thead>
+          <tbody>
+            {rows.map((r, ri) => (
+              <tr key={ri}>{r.map((c, ci) => <td key={ci}>{mdInline(c, "td" + key + "-" + ri + "-" + ci)}</td>)}</tr>
+            ))}
+          </tbody>
+        </table>
+      );
+      continue;
+    }
+
     if (/^\s*[-*+]\s+/.test(line)) {
       const items = [];
       while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) {

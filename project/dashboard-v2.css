@@ -2055,3 +2055,29 @@ body.is-resizing * {
   font-size: 12.5px;
   color: var(--wb-text);
 }
+
+/* Markdown tables */
+.wb-msg-agent__text .wb-md-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  display: block;
+  overflow-x: auto;
+}
+.wb-msg-agent__text .wb-md-table th,
+.wb-msg-agent__text .wb-md-table td {
+  border: 1px solid var(--wb-border);
+  padding: 7px 11px;
+  text-align: left;
+  vertical-align: top;
+}
+.wb-msg-agent__text .wb-md-table th {
+  background: var(--wb-panel);
+  color: var(--wb-text-strong);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.wb-msg-agent__text .wb-md-table tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.02);
+}
