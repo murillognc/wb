@@ -450,14 +450,14 @@ body.is-resizing * {
 }
 .wb-row.is-selected .wb-row__id { color: var(--wb-accent); }
 
-/* Monogram tile — Initial + lowercase (Ve, Af, Gc…) */
+/* Monogram disc — Initial + lowercase (Wb, Af, Gc…) */
 .wb-mono {
   position: relative;
   width: 44px;
   height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
+  border-radius: 50%;
   background: var(--wb-panel-elev);
   border: 1px solid var(--wb-border-strong);
   font-family: var(--grws-font-display);
@@ -468,50 +468,79 @@ body.is-resizing * {
   overflow: hidden;
   flex-shrink: 0;
 }
-.wb-mono--md { width: 32px; height: 32px; border-radius: 6px; font-size: 12px; }
-.wb-mono--sm { width: 22px; height: 22px; border-radius: 5px; font-size: 10px; }
+.wb-mono--md { width: 32px; height: 32px; font-size: 12px; }
+.wb-mono--sm { width: 22px; height: 22px; font-size: 10px; }
 .wb-mono__txt { position: relative; z-index: 1; }
 
-/* Spinning multi-colour gradient ring while the agent is thinking */
+/* Colour comet that sweeps the ring while the agent is thinking.
+   The ring track is a fixed multi-colour gradient shown dim; a bright arc
+   rotates over it — only the mask window moves, not the colours — so each
+   slice of the gradient "lights up" as the comet passes. A glowing,
+   colourful loading spinner. */
+@property --wb-ang {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
 .wb-mono.is-thinking { overflow: visible; }
 .wb-mono__ring {
+  --rt: 3px;                                  /* ring thickness */
   position: absolute;
-  inset: -3px;
-  border-radius: 11px;
-  padding: 2px;
-  background: conic-gradient(from 0deg,
-    #FA981A, #5E83B8, #4FA060, #9B59B6, #E0556E, #2BB3A3, #FA981A);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  animation: wb-spin 1.15s linear infinite;
+  inset: calc(-1 * var(--rt));
+  border-radius: 50%;
   pointer-events: none;
   z-index: 0;
+  background: conic-gradient(from 0deg,
+    #FA981A, #5E83B8, #4FA060, #9B59B6, #E0556E, #2BB3A3, #FA981A);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--rt)), #000 calc(100% - var(--rt)));
+          mask: radial-gradient(farthest-side, transparent calc(100% - var(--rt)), #000 calc(100% - var(--rt)));
+  opacity: 0.9;
+  filter: saturate(0.5) brightness(0.5);      /* dim base track */
 }
-.wb-mono--md .wb-mono__ring { border-radius: 9px; }
-.wb-mono--sm .wb-mono__ring { border-radius: 8px; }
+/* The bright sweeping arc: same fixed gradient, windowed by a rotating
+   conic mask and intersected with the ring shape. */
+.wb-mono__ring::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg,
+    #FA981A, #5E83B8, #4FA060, #9B59B6, #E0556E, #2BB3A3, #FA981A);
+  -webkit-mask:
+    radial-gradient(farthest-side, transparent calc(100% - var(--rt)), #000 calc(100% - var(--rt))),
+    conic-gradient(from var(--wb-ang), #000 0deg, transparent 150deg, transparent 360deg);
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(farthest-side, transparent calc(100% - var(--rt)), #000 calc(100% - var(--rt))),
+    conic-gradient(from var(--wb-ang), #000 0deg, transparent 150deg, transparent 360deg);
+  mask-composite: intersect;
+  filter: brightness(1.4) saturate(1.3) drop-shadow(0 0 5px rgba(255, 255, 255, 0.22));
+  animation: wb-ring-spin 1.1s linear infinite;
+}
+.wb-mono--md .wb-mono__ring { --rt: 2.5px; }
+.wb-mono--sm .wb-mono__ring { --rt: 2px; }
+@keyframes wb-ring-spin { to { --wb-ang: 360deg; } }
 @keyframes wb-spin { to { transform: rotate(360deg); } }
 .wb-mono::before {
   /* faint cross-hatch index lines */
   content: '';
   position: absolute;
   inset: 0;
+  border-radius: 50%;
   background-image:
     linear-gradient(135deg, rgba(255,255,255,0.04) 1px, transparent 1px);
   background-size: 6px 6px;
   pointer-events: none;
 }
 .wb-mono::after {
-  /* accent bar at bottom — color per persona */
+  /* persona-coloured rim around the disc */
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2px;
-  background: var(--mono-accent, var(--wb-info));
-  opacity: 0.85;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--mono-accent, var(--wb-info));
+  opacity: 0.7;
+  pointer-events: none;
 }
 .wb-mono--exec {
   background: linear-gradient(180deg, #1A1410 0%, #0F131B 100%);
@@ -520,9 +549,8 @@ body.is-resizing * {
   box-shadow: inset 0 0 0 1px rgba(250,152,26,0.10);
 }
 .wb-mono--exec::after {
-  height: 2px;
-  background: var(--wb-accent);
-  box-shadow: 0 0 8px rgba(250,152,26,0.6);
+  box-shadow: inset 0 0 0 1.5px rgba(250,152,26,0.9), 0 0 10px rgba(250,152,26,0.35);
+  opacity: 1;
 }
 [data-theme="light"] .wb-mono {
   background: #F4F6FA;
@@ -949,7 +977,8 @@ body.is-resizing * {
   40%           { opacity: 1;    transform: translateY(-2px); }
 }
 .wb-active__item.is-thinking .wb-active__mono {
-  box-shadow: 0 0 0 2px var(--persona-color, var(--wb-accent)), 0 0 18px -2px var(--persona-color, var(--wb-accent));
+  /* The comet ring carries the colour now — keep just a soft neutral glow. */
+  box-shadow: 0 0 16px -2px rgba(255, 255, 255, 0.18);
   animation: wb-thinking-pulse 1.6s ease-in-out infinite;
 }
 @keyframes wb-thinking-pulse {
