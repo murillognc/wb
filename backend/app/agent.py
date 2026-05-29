@@ -233,6 +233,7 @@ async def _stream_agent(
     agent_ids: list,
     capture: Optional[list] = None,
     as_reasoning: bool = False,
+    hide_thinking: bool = False,
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """Stream ONE bubble's contribution.
 
@@ -296,7 +297,7 @@ async def _stream_agent(
                                        "bubbleId": bubble_id, "text": txt}
                         elif dtype == "thinking_delta":
                             think = delta.get("thinking", "")
-                            if think and not as_reasoning:
+                            if think and not as_reasoning and not hide_thinking:
                                 yield {"type": "thinking", "bubbleId": bubble_id, "text": think}
                     continue
 
@@ -317,7 +318,7 @@ async def _stream_agent(
                                 answer_parts.append(block.text)
                                 yield {"type": "thinking" if as_reasoning else "text",
                                        "bubbleId": bubble_id, "text": block.text}
-                            elif isinstance(block, ThinkingBlock) and getattr(block, "thinking", "") and not as_reasoning:
+                            elif isinstance(block, ThinkingBlock) and getattr(block, "thinking", "") and not as_reasoning and not hide_thinking:
                                 yield {"type": "thinking", "bubbleId": bubble_id, "text": block.thinking}
                     continue
 
@@ -469,7 +470,7 @@ async def _orchestrate(
 
     if not chosen:
         # Nothing worth consulting — the orchestrator just answers directly.
-        async for ev in _stream_agent(orch, prompt, cfg, bubble_id="final", agent_ids=[orch["id"]]):
+        async for ev in _stream_agent(orch, prompt, cfg, bubble_id="final", agent_ids=[orch["id"]], hide_thinking=True):
             yield ev
         yield {"type": "done"}
         return
@@ -516,7 +517,8 @@ async def _orchestrate(
     joint = {**orch, "systemPrompt": (orch.get("systemPrompt") or "") + _JOINT_SYS_SUFFIX}
     joint_ids = [orch["id"]] + [sp["id"] for sp in chosen]
     async for ev in _stream_agent(
-        joint, _synthesis_prompt(prompt, results), cfg, bubble_id="final", agent_ids=joint_ids
+        joint, _synthesis_prompt(prompt, results), cfg, bubble_id="final", agent_ids=joint_ids,
+        hide_thinking=True,
     ):
         yield ev
     yield {"type": "done"}
@@ -550,6 +552,6 @@ async def stream_reply(
         async for ev in _orchestrate(agent, prompt, message, specialists, cfg):
             yield ev
     else:
-        async for ev in _stream_agent(agent, prompt, cfg, bubble_id="final", agent_ids=[agent["id"]]):
+        async for ev in _stream_agent(agent, prompt, cfg, bubble_id="final", agent_ids=[agent["id"]], hide_thinking=True):
             yield ev
         yield {"type": "done"}
