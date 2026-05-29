@@ -54,9 +54,18 @@ from claude_agent_sdk import (
 )
 
 from .config import AppConfig
-from .personas import system_prompt_for
+from .agents_store import store as agent_store
 
 log = logging.getLogger("waterbrain.agent")
+
+# Router used by the orchestrator to pick which specialists to consult.
+_ROUTER_SYS = (
+    "Você é um roteador de especialistas. Dada a mensagem do usuário e a lista de "
+    "especialistas disponíveis, escolha APENAS os que são realmente necessários "
+    "para responder bem (seja seletivo: muitas vezes 1 ou 2 bastam, às vezes nenhum). "
+    "Responda somente com os ids separados por vírgula, ou a palavra 'nenhum'."
+)
+_MAX_CONSULTS = 3
 
 # Assistant-level / result-level error codes worth retrying.
 _RETRYABLE_ERRORS = {"rate_limit", "server_error"}
@@ -98,11 +107,22 @@ def _build_prompt(history, message: str) -> str:
     )
 
 
-def _build_options(persona_id: str, cfg: AppConfig) -> ClaudeAgentOptions:
+def _build_options(agent: Dict[str, Any], cfg: AppConfig) -> ClaudeAgentOptions:
     display = "summarized" if cfg.display_thinking else "omitted"
+
+    # Per-agent thinking config (admin-editable); display stays a global valve.
+    if agent.get("thinkingEnabled", True):
+        thinking: Dict[str, Any] = {
+            "type": "enabled",
+            "budget_tokens": int(agent.get("thinkingBudget", cfg.THINKING_BUDGET_TOKENS)),
+            "display": display,
+        }
+    else:
+        thinking = {"type": "disabled"}
+
     opts = ClaudeAgentOptions(
-        model=cfg.MODEL_ID,
-        system_prompt=system_prompt_for(persona_id),
+        model=agent.get("model") or cfg.MODEL_ID,
+        system_prompt=agent.get("systemPrompt") or "",
         # Pure text consultative chat: no file/bash/web tools, no autonomy.
         # With no tools enabled there is nothing to request permission for, so
         # we leave permission_mode at its default — using "bypassPermissions"
@@ -112,13 +132,8 @@ def _build_options(persona_id: str, cfg: AppConfig) -> ClaudeAgentOptions:
         max_turns=cfg.MAX_TURNS,
         # Surface CLI stderr into our logs for diagnostics.
         stderr=lambda line: log.debug("cli stderr: %s", line.rstrip()),
-        # Hardcoded behaviours:
-        thinking={
-            "type": "enabled",
-            "budget_tokens": cfg.THINKING_BUDGET_TOKENS,
-            "display": display,
-        },
-        betas=[cfg.CONTEXT_1M_BETA],          # 1M context window
+        thinking=thinking,
+        betas=[cfg.CONTEXT_1M_BETA],          # 1M context window (always on)
         include_partial_messages=True,        # token-level streaming
         # Isolation: ignore user/project/local settings on the host.
         setting_sources=None,
@@ -180,30 +195,17 @@ def _is_retryable(code: str | None, status: int | None) -> bool:
     return (code in _RETRYABLE_ERRORS) or (status in _RETRYABLE_HTTP)
 
 
-async def stream_reply(
-    *,
-    persona_id: str,
-    message: str,
-    history,
+async def _stream_agent(
+    agent: Dict[str, Any],
+    prompt: str,
     cfg: AppConfig,
 ) -> AsyncGenerator[Dict[str, Any], None]:
-    """Stream a persona's reply as a sequence of protocol dicts."""
-
-    if not cfg.key_set:
-        yield {
-            "type": "error",
-            "message": "ANTHROPIC_API_KEY nao configurada. "
-            "Abra Configuracoes e cole sua chave da API.",
-        }
-        return
-
-    prompt = _build_prompt(history, message)
-    yield {"type": "status", "text": "Enviando para a Anthropic...", "done": False}
+    """Stream a single agent's reply (status/text/thinking/meta/done/error)."""
 
     last_error_msg: Optional[str] = None
 
     for attempt in range(cfg.MAX_RETRIES):
-        options = _build_options(persona_id, cfg)
+        options = _build_options(agent, cfg)
 
         captured_session: Optional[str] = None
         captured_usage: Optional[Dict[str, Any]] = None
@@ -345,3 +347,122 @@ async def stream_reply(
         "type": "error",
         "message": last_error_msg or "Maximo de tentativas excedido.",
     }
+
+
+# ===================================================================
+# Multi-agent orchestration
+# Each specialist consultation is a REAL Agent SDK call (pure text, no
+# system tools). The orchestrator routes, the chosen specialists run in
+# parallel, then the orchestrator synthesises — so "entrou no chat"
+# reflects specialists that were actually invoked via the SDK.
+# ===================================================================
+
+async def _collect(agent_like: Dict[str, Any], prompt: str, cfg: AppConfig) -> str:
+    """Run one agent to completion and return its full answer text."""
+    options = _build_options(agent_like, cfg)
+    parts: list[str] = []
+    try:
+        async for msg in query(prompt=prompt, options=options):
+            if isinstance(msg, AssistantMessage) and not msg.error:
+                for b in msg.content:
+                    if isinstance(b, TextBlock) and b.text:
+                        parts.append(b.text)
+    except Exception:  # noqa: BLE001
+        log.exception("consult failed for agent %s", agent_like.get("id"))
+    return "".join(parts).strip()
+
+
+async def _route(orch: Dict[str, Any], message: str, specialists: list, cfg: AppConfig) -> list:
+    """Ask the orchestrator (thinking off) which specialists to consult."""
+    if not specialists:
+        return []
+    listing = "\n".join(f"- {s['id']}: {s['role']} — {s.get('area', '')}" for s in specialists)
+    router = {
+        "model": orch.get("model") or cfg.MODEL_ID,
+        "systemPrompt": _ROUTER_SYS,
+        "thinkingEnabled": False,
+    }
+    rp = (
+        f"Especialistas disponíveis:\n{listing}\n\n"
+        f"Mensagem do usuário:\n{message}\n\n"
+        "Ids dos especialistas a consultar (ou 'nenhum'):"
+    )
+    out = (await _collect(router, rp, cfg)).lower()
+    chosen = [s for s in specialists if s["id"] in out or s["role"].lower() in out]
+    return chosen[:_MAX_CONSULTS]
+
+
+def _synthesis_prompt(prompt: str, results: list) -> str:
+    blocks = "\n\n".join(f"### {sp['role']}\n{text}" for sp, text in results if text)
+    return (
+        f"{prompt}\n\n"
+        "[Contribuições dos especialistas que você consultou]\n"
+        f"{blocks}\n\n"
+        "[Sua tarefa] Sintetize as contribuições acima em uma resposta executiva, "
+        "coesa e objetiva em PT-BR. Integre os pontos (não repita em blocos), e "
+        "atribua aos especialistas quando agregar clareza."
+    )
+
+
+async def _orchestrate(
+    orch: Dict[str, Any], prompt: str, message: str, specialists: list, cfg: AppConfig
+) -> AsyncGenerator[Dict[str, Any], None]:
+    yield {"type": "status", "text": "Selecionando especialistas...", "done": False}
+    chosen = await _route(orch, message, specialists, cfg)
+
+    if not chosen:
+        # Orchestrator handles it alone.
+        async for ev in _stream_agent(orch, prompt, cfg):
+            yield ev
+        return
+
+    for sp in chosen:
+        yield {"type": "join", "agentId": sp["id"], "role": sp["role"]}
+    names = ", ".join(s["role"] for s in chosen)
+    yield {"type": "status", "text": f"Consultando {names}...", "done": False}
+
+    consult_prompt = (
+        prompt + "\n\n[Instrução] Responda de forma objetiva e focada na sua "
+        "especialidade; suas notas serão consolidadas pelo orquestrador."
+    )
+    texts = await asyncio.gather(*[_collect(sp, consult_prompt, cfg) for sp in chosen])
+    results = list(zip(chosen, texts))
+
+    for sp in chosen:
+        yield {"type": "settled", "agentId": sp["id"]}
+
+    yield {"type": "status", "text": "Sintetizando o briefing...", "done": False}
+    async for ev in _stream_agent(orch, _synthesis_prompt(prompt, results), cfg):
+        yield ev
+
+
+async def stream_reply(
+    *,
+    agent: Dict[str, Any],
+    message: str,
+    history,
+    cfg: AppConfig,
+) -> AsyncGenerator[Dict[str, Any], None]:
+    """Entry point: orchestrate (if the agent is an orchestrator) or answer directly."""
+    if not cfg.key_set:
+        yield {
+            "type": "error",
+            "message": "ANTHROPIC_API_KEY nao configurada. "
+            "Abra Configuracoes e cole sua chave da API.",
+        }
+        return
+
+    prompt = _build_prompt(history, message)
+    yield {"type": "status", "text": "Enviando para a Anthropic...", "done": False}
+
+    specialists = [
+        a for a in agent_store.list(include_disabled=False)
+        if not a.get("isExecutive") and a["id"] != agent["id"]
+    ]
+
+    if agent.get("isExecutive") and specialists:
+        async for ev in _orchestrate(agent, prompt, message, specialists, cfg):
+            yield ev
+    else:
+        async for ev in _stream_agent(agent, prompt, cfg):
+            yield ev

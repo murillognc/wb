@@ -833,7 +833,22 @@ body.is-resizing * {
   gap: 28px;
   padding: 16px 4px;
   border-bottom: 1px solid var(--wb-rule);
+  transition: gap 220ms ease, padding 220ms ease;
 }
+
+/* Docked: once the chat has messages, this shrinks to a slim top bar so the
+   thread gets the vertical space. */
+.wb-active--docked {
+  gap: 18px;
+  padding: 10px 4px 12px;
+}
+.wb-active--docked .wb-active__mono { width: 32px; height: 32px; font-size: 11px; }
+.wb-active--docked .wb-active__item { gap: 10px; }
+.wb-active--docked .wb-active__item + .wb-active__item { padding-left: 18px; }
+.wb-active--docked .wb-active__label { font-size: 10.5px; }
+.wb-active--docked .wb-active__name { font-size: 14px; }
+.wb-active__mono { transition: width 220ms ease, height 220ms ease, font-size 220ms ease; }
+.wb-active__name { transition: font-size 220ms ease; }
 .wb-active__item {
   display: grid;
   grid-template-columns: auto 1fr;

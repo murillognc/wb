@@ -20,6 +20,40 @@
     return res.json();
   }
 
+  // ---- Agents CRUD ----------------------------------------------------------
+  async function listAgents() {
+    const res = await fetch("/api/agents", { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error("agents " + res.status);
+    const data = await res.json();
+    return data.agents || [];
+  }
+
+  async function createAgent(payload) {
+    const res = await fetch("/api/agents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("agent create " + res.status);
+    return res.json();
+  }
+
+  async function updateAgent(id, payload) {
+    const res = await fetch("/api/agents/" + encodeURIComponent(id), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("agent update " + res.status);
+    return res.json();
+  }
+
+  async function deleteAgent(id) {
+    const res = await fetch("/api/agents/" + encodeURIComponent(id), { method: "DELETE" });
+    if (!res.ok) throw new Error("agent delete " + res.status);
+    return res.json();
+  }
+
   function dispatch(ev, h) {
     switch (ev.type) {
       case "status":
@@ -30,6 +64,12 @@
         break;
       case "text":
         if (h.onText) h.onText(ev.text);
+        break;
+      case "join":
+        if (h.onJoin) h.onJoin(ev.agentId, ev.role);
+        break;
+      case "settled":
+        if (h.onSettled) h.onSettled(ev.agentId);
         break;
       case "meta":
         if (h.onMeta) h.onMeta({ sessionId: ev.sessionId, cacheInfo: ev.cacheInfo });
@@ -115,5 +155,13 @@
     }
   }
 
-  window.WBApi = { getConfig: getConfig, saveConfig: saveConfig, streamChat: streamChat };
+  window.WBApi = {
+    getConfig: getConfig,
+    saveConfig: saveConfig,
+    streamChat: streamChat,
+    listAgents: listAgents,
+    createAgent: createAgent,
+    updateAgent: updateAgent,
+    deleteAgent: deleteAgent,
+  };
 })();

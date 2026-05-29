@@ -98,7 +98,7 @@ const QUICK_PROMPTS = {
 /* ============================================================
    HEADER
    ============================================================ */
-function HeaderV2({ time, keySet = true, onOpenSettings }) {
+function HeaderV2({ time, keySet = true, onOpenSettings, onOpenAdmin }) {
   const timeStr = useMemo(() => {
     const h = time.getHours().toString().padStart(2, "0");
     const m = time.getMinutes().toString().padStart(2, "0");
@@ -135,6 +135,22 @@ function HeaderV2({ time, keySet = true, onOpenSettings }) {
       <div className="wb-tele"></div>
 
       <div className="wb-user">
+        {onOpenAdmin && (
+          <button
+            type="button"
+            className="wb-settings-btn"
+            onClick={onOpenAdmin}
+            title="Administração"
+            aria-label="Administração"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" />
+              <rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" />
+              <rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" />
+              <rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" />
+            </svg>
+          </button>
+        )}
         <button
           type="button"
           className={"wb-settings-btn" + (keySet ? "" : " is-warn")}
@@ -366,7 +382,7 @@ function Caret({ open }) {
   );
 }
 
-function Roster({ selectedId, onSelect, showRecent }) {
+function Roster({ selectedId, onSelect, showRecent, personas = PERSONAS_V2 }) {
   const [tip, setTip] = React.useState(null);
   const [agentsOpen, setAgentsOpen] = React.useState(() => {
     try { return localStorage.getItem("wb-agents-open") !== "0"; } catch (_) { return true; }
@@ -417,7 +433,7 @@ function Roster({ selectedId, onSelect, showRecent }) {
 
       {agentsOpen && (
         <div className="wb-roster__list" id="wb-roster-list">
-          {PERSONAS_V2.map((p) => (
+          {personas.map((p) => (
             <PersonaRow
               key={p.id}
               persona={p}
@@ -452,7 +468,7 @@ function Roster({ selectedId, onSelect, showRecent }) {
               ) : (
                 <ul className="wb-recent">
                   {RECENTS_V2.map((r) => {
-                    const p = PERSONAS_V2.find((x) => x.id === r.personaId);
+                    const p = personas.find((x) => x.id === r.personaId);
                     return (
                       <li key={r.id} className="wb-recent__item">
                         <span className="wb-recent__bullet" style={{ "--bullet-color": p.color }}></span>
@@ -552,7 +568,7 @@ function Query({ persona, joinedPersonas = [], thinkingIds = [], time, messages,
     }
   }, [messages.length]);
 
-  const prompts = QUICK_PROMPTS[persona.id] || [];
+  const prompts = persona.quickPrompts || QUICK_PROMPTS[persona.id] || [];
   const hasMessages = messages.length > 0;
 
   function applyPrompt(p) {
@@ -576,21 +592,24 @@ function Query({ persona, joinedPersonas = [], thinkingIds = [], time, messages,
 
   return (
     <section className="wb-query">
-      {/* Greeting row */}
-      <div className="wb-greet">
-        <div className="wb-greet__main">
-          <span className="wb-greet__eyebrow">
-            <span className="wb-dot wb-dot--steel"></span>
-            Briefing · <b>quarta, 28 mai</b>
-          </span>
-          <h1 className="wb-greet__title">
-            {greeting}, <b>Murillo.</b>
-          </h1>
+      {/* Greeting row — only while the chat is empty; it gives way to the chat */}
+      {!hasMessages && (
+        <div className="wb-greet">
+          <div className="wb-greet__main">
+            <span className="wb-greet__eyebrow">
+              <span className="wb-dot wb-dot--steel"></span>
+              Briefing · <b>quarta, 28 mai</b>
+            </span>
+            <h1 className="wb-greet__title">
+              {greeting}, <b>Murillo.</b>
+            </h1>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Active persona context — primary + agents that joined the chat */}
-      <div className="wb-active">
+      {/* Active persona context — primary + agents that joined the chat.
+          Docks to a slim top bar once the conversation starts. */}
+      <div className={"wb-active" + (hasMessages ? " wb-active--docked" : "")}>
         <div className={"wb-active__item" + (thinkingIds.includes(persona.id) ? " is-thinking" : "")}>
           <Mono persona={persona} size="lg" />
           <div className="wb-active__body">
@@ -721,6 +740,7 @@ Object.assign(window, {
   RECENTS_V2,
   HeaderV2,
   SettingsModal,
+  Mono,
   Roster,
   Query,
   FooterV2,

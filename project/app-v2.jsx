@@ -1,5 +1,5 @@
 /* global React, ReactDOM, WBApi, useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakToggle,
-   PERSONAS_V2, HeaderV2, SettingsModal, Roster, Query, FooterV2 */
+   PERSONAS_V2, HeaderV2, SettingsModal, Roster, Query, FooterV2, AdminScreen */
 
 const { useState, useEffect, useRef, useCallback } = React;
 
@@ -35,6 +35,27 @@ function AppV2() {
       .catch(() => {});
     return () => { alive = false; };
   }, []);
+
+  // === Agents (source of truth = backend; PERSONAS_V2 is a fallback seed) ===
+  const [agents, setAgents] = useState(PERSONAS_V2);
+  const [adminOpen, setAdminOpen] = useState(false);
+  const enabledAgents = agents.filter((a) => a.enabled !== false);
+  const enabledRef = useRef(enabledAgents);
+  useEffect(() => { enabledRef.current = enabledAgents; }, [enabledAgents]);
+
+  const loadAgents = useCallback(() => {
+    WBApi.listAgents()
+      .then((list) => { if (list && list.length) setAgents(list); })
+      .catch(() => {});
+  }, []);
+  useEffect(() => { loadAgents(); }, [loadAgents]);
+
+  // Keep the selection valid as agents change.
+  useEffect(() => {
+    if (enabledAgents.length && !enabledAgents.some((a) => a.id === selectedId)) {
+      setSelectedId(enabledAgents[0].id);
+    }
+  }, [enabledAgents, selectedId]);
 
   // === Chat state ===
   const [messages, setMessages] = useState([]);
@@ -73,7 +94,7 @@ function AppV2() {
   function detectCalledIds(text) {
     const lower = text.toLowerCase();
     const hits = [];
-    for (const p of PERSONAS_V2) {
+    for (const p of enabledRef.current) {
       const kws = PERSONA_KEYWORDS[p.id] || [];
       if (kws.some((k) => lower.includes(k))) hits.push(p.id);
     }
@@ -129,53 +150,26 @@ function AppV2() {
     setRosterW(ROSTER_W_DEFAULT);
   }, []);
 
-  const selectedPersona = PERSONAS_V2.find((p) => p.id === selectedId);
+  const selectedPersona =
+    enabledAgents.find((p) => p.id === selectedId) || enabledAgents[0] || PERSONAS_V2[0];
 
   // === Send message handler ===
-  // Each user message:
-  //  1. Adds the user bubble immediately
-  //  2. After 500ms: brings ONE other agent into the chat (if any haven't joined)
-  //  3. After 1200ms: the primary agent replies with a placeholder
+  // The primary agent answers. If it's an orchestrator, the backend may consult
+  // specialists via the Agent SDK and emits real "join"/"settled" events — those
+  // drive who appears in the chat and who is "thinking".
   const handleSend = useCallback((text) => {
     const stamp = Date.now();
-    const primaryAtSend = PERSONAS_V2.find((p) => p.id === selectedId);
-    const called = detectCalledIds(text); // personas explicitly invoked by the text
+    const all = enabledRef.current;
+    const primaryAtSend = all.find((p) => p.id === selectedId) || all[0];
+    if (!primaryAtSend) return;
 
     // 1. User message
-    setMessages((prev) => [...prev, {
-      id: `u-${stamp}`,
-      type: "user",
-      text,
-    }]);
+    setMessages((prev) => [...prev, { id: `u-${stamp}`, type: "user", text }]);
 
-    // 2. Bring relevant agents into the header roster.
-    //    If the text names specific agents, those join (besides the primary).
-    //    Otherwise, bring in one fresh agent so the demo keeps populating.
-    let willJoinIds = [];
-    setJoinedAgents((prevJoined) => {
-      const calledNew = called.filter(
-        (id) => id !== selectedId && !prevJoined.includes(id)
-      );
-      if (calledNew.length > 0) {
-        willJoinIds = calledNew;
-        return [...prevJoined, ...calledNew];
-      }
-      const available = PERSONAS_V2.filter(
-        (p) => p.id !== selectedId && !prevJoined.includes(p.id)
-      );
-      if (available.length === 0) return prevJoined;
-      willJoinIds = [available[0].id];
-      return [...prevJoined, available[0].id];
-    });
+    // 2. Primary starts thinking (until its first token, or synthesis, lands)
+    setThinkingIds((prev) => Array.from(new Set([...prev, primaryAtSend.id])));
 
-    // 3. Mark thinkers: primary always thinks; any persona named in the text
-    //    that's already in the header (or just joined) also thinks.
-    const headerIds = new Set([selectedId, ...joinedAgents, ...willJoinIds]);
-    const thinkers = [selectedId, ...called.filter((id) => headerIds.has(id) && id !== selectedId)];
-    setThinkingIds((prev) => Array.from(new Set([...prev, ...thinkers])));
-
-    // 4. Primary agent reply — streamed live from the backend (Agent SDK).
-    //    The header keeps showing "Pensando…" until the first token lands.
+    // 3. Stream the reply.
     const replyId = `r-${stamp}`;
     let started = false;
     let acc = "";
@@ -194,7 +188,7 @@ function AppV2() {
       ]);
     };
 
-    // Replay the visible thread (user + agent turns) so the persona has context.
+    // Replay the visible thread (user + agent turns) so the agent has context.
     const history = messagesRef.current
       .filter((m) => (m.type === "user" || m.type === "reply") && !m.error && m.text)
       .map((m) => ({ role: m.type === "user" ? "user" : "assistant", text: m.text }));
@@ -204,9 +198,15 @@ function AppV2() {
       {
         onText: (chunk) => { ensureReply(); acc += chunk; updateReply({ text: acc }); },
         onThinking: (chunk) => { ensureReply(); reasoning += chunk; updateReply({ thinking: reasoning }); },
-        onMeta: ({ cacheInfo }) => {
-          if (cacheInfo) updateReply({ cacheInfo });
+        // Real "entrou no chat": a specialist was actually invoked via the SDK.
+        onJoin: (agentId) => {
+          setJoinedAgents((prev) => (prev.includes(agentId) ? prev : [...prev, agentId]));
+          setThinkingIds((prev) => Array.from(new Set([...prev, agentId])));
         },
+        onSettled: (agentId) => {
+          setThinkingIds((prev) => prev.filter((id) => id !== agentId));
+        },
+        onMeta: ({ cacheInfo }) => { if (cacheInfo) updateReply({ cacheInfo }); },
         onError: (errMsg) => {
           ensureReply();
           updateReply({ text: acc || errMsg, error: !acc, streaming: false });
@@ -216,21 +216,11 @@ function AppV2() {
         },
         onDone: () => {
           if (started) updateReply({ streaming: false });
-          else stopPrimaryThinking(); // nothing streamed (e.g. early error)
+          else stopPrimaryThinking();
         },
       }
     );
-
-    // 5. Side-agents settle down after a beat (no reply in demo)
-    thinkers
-      .filter((id) => id !== selectedId)
-      .forEach((id) => {
-        const settleIn = 1800 + Math.random() * 1400;
-        setTimeout(() => {
-          setThinkingIds((prev) => prev.filter((x) => x !== id));
-        }, settleIn);
-      });
-  }, [selectedId, joinedAgents]);
+  }, [selectedId]);
 
   return (
     <div className="wb-app">
@@ -238,6 +228,7 @@ function AppV2() {
         time={time}
         keySet={!config || config.keySet}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOpenAdmin={() => setAdminOpen(true)}
       />
 
       <div
@@ -248,6 +239,7 @@ function AppV2() {
           selectedId={selectedId}
           onSelect={(p) => setSelectedId(p.id)}
           showRecent={t.showContinue}
+          personas={enabledAgents}
         />
         <div
           className={"wb-resize" + (dragging ? " is-dragging" : "")}
@@ -260,7 +252,7 @@ function AppV2() {
         <Query
           persona={selectedPersona}
           joinedPersonas={joinedAgents
-            .map((id) => PERSONAS_V2.find((p) => p.id === id))
+            .map((id) => enabledAgents.find((p) => p.id === id))
             .filter(Boolean)}
           thinkingIds={thinkingIds}
           time={time}
@@ -276,6 +268,16 @@ function AppV2() {
           config={config}
           onClose={() => setSettingsOpen(false)}
           onSaved={(next) => setConfig(next)}
+        />
+      )}
+
+      {adminOpen && (
+        <AdminScreen
+          agents={agents}
+          config={config}
+          onChanged={loadAgents}
+          onConfigSaved={(next) => setConfig(next)}
+          onClose={() => setAdminOpen(false)}
         />
       )}
 

@@ -30,9 +30,9 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .agent import stream_reply
+from .agents_store import store as agent_store
 from .config import config
-from .personas import is_valid, roster
-from .schemas import ChatRequest, ConfigUpdate
+from .schemas import AgentPayload, ChatRequest, ConfigUpdate
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
@@ -70,20 +70,51 @@ async def post_config(update: ConfigUpdate) -> dict:
     return config.public_dict()
 
 
-@app.get("/api/personas")
-async def get_personas() -> dict:
-    return {"personas": roster()}
+# ----------------------------------------------------------------- agents CRUD
+@app.get("/api/agents")
+async def list_agents() -> dict:
+    return {"agents": agent_store.list(include_disabled=True)}
+
+
+@app.post("/api/agents", status_code=201)
+async def create_agent(payload: AgentPayload) -> dict:
+    data = payload.model_dump(exclude_none=True)
+    if not data.get("role"):
+        raise HTTPException(status_code=400, detail="role (nome) é obrigatório")
+    agent = agent_store.create(data)
+    log.info("Agent created: %s (%s)", agent["id"], agent["role"])
+    return agent
+
+
+@app.put("/api/agents/{agent_id}")
+async def update_agent(agent_id: str, payload: AgentPayload) -> dict:
+    agent = agent_store.update(agent_id, payload.model_dump(exclude_none=True))
+    if not agent:
+        raise HTTPException(status_code=404, detail=f"agente não encontrado: {agent_id}")
+    log.info("Agent updated: %s", agent_id)
+    return agent
+
+
+@app.delete("/api/agents/{agent_id}")
+async def delete_agent(agent_id: str) -> dict:
+    if not agent_store.delete(agent_id):
+        raise HTTPException(status_code=404, detail=f"agente não encontrado: {agent_id}")
+    log.info("Agent deleted: %s", agent_id)
+    return {"ok": True}
 
 
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
-    if not is_valid(req.persona_id):
-        raise HTTPException(status_code=400, detail=f"persona desconhecida: {req.persona_id}")
+    agent = agent_store.get(req.persona_id)
+    if not agent:
+        raise HTTPException(status_code=400, detail=f"agente desconhecido: {req.persona_id}")
+    if not agent.get("enabled", True):
+        raise HTTPException(status_code=400, detail=f"agente inativo: {req.persona_id}")
 
     async def event_source():
         try:
             async for event in stream_reply(
-                persona_id=req.persona_id,
+                agent=agent,
                 message=req.message,
                 history=req.history,
                 cfg=config,

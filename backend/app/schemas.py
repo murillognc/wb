@@ -2,7 +2,29 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class AgentPayload(BaseModel):
+    """Create/update payload for an agent. All optional; the store fills defaults
+    and ignores unknown keys. `model` would clash with pydantic's protected
+    namespace, so we disable that protection."""
+
+    model_config = ConfigDict(protected_namespaces=(), extra="ignore")
+
+    role: str | None = None
+    initials: str | None = None
+    color: str | None = None
+    area: str | None = None
+    quote: str | None = None
+    isExecutive: bool | None = None
+    model: str | None = None
+    thinkingEnabled: bool | None = None
+    thinkingBudget: int | None = None
+    systemPrompt: str | None = None
+    enabled: bool | None = None
+    order: int | None = None
+    quickPrompts: list[dict] | None = None
 
 
 class ConfigUpdate(BaseModel):

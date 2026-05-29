@@ -7,5 +7,8 @@ backend/.venv/
 backend/.env
 .env
 
+# Local runtime state (agents are seeded from code on first run)
+backend/data/
+
 # OS / editor
 .DS_Store
