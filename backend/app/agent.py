@@ -39,6 +39,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import re
 import shutil
 from typing import Any, AsyncGenerator, Dict, Optional
 
@@ -428,6 +429,27 @@ def _names(agents: list) -> str:
     return ", ".join(roles[:-1]) + f" e {roles[-1]}"
 
 
+def _first_sentence(text: str, limit: int = 220) -> str:
+    """Keep only the first sentence of the opening line — Opus tends to keep
+    going and answer the whole question, so we hard-trim it."""
+    t = (text or "").strip()
+    if not t:
+        return ""
+    # First non-empty line, stripped of markdown headers / list bullets / rules.
+    for line in t.splitlines():
+        line = line.strip().lstrip("#").strip(" -*_").strip()
+        if line and line not in ("---", "***"):
+            t = line
+            break
+    # Cut at the first sentence terminator.
+    m = re.search(r"[.!?](\s|$)", t)
+    if m:
+        t = t[: m.start() + 1]
+    if len(t) > limit:
+        t = t[:limit].rstrip() + "…"
+    return t
+
+
 async def _orchestrate(
     orch: Dict[str, Any], prompt: str, message: str, specialists: list, cfg: AppConfig
 ) -> AsyncGenerator[Dict[str, Any], None]:
@@ -441,15 +463,22 @@ async def _orchestrate(
         yield {"type": "done"}
         return
 
-    # 1) Short, generated opening line (no thinking) announcing the consult.
+    # 1) Short opening line. Generated WITHOUT streaming and hard-trimmed to a
+    #    single sentence — otherwise the model answers the whole question here
+    #    instead of just announcing the consult.
     opener = {**orch, "systemPrompt": _OPENING_SYS, "thinkingEnabled": False}
     opening_prompt = (
-        f"Pergunta do usuário:\n{message}\n\n"
-        f"Especialista(s) que você vai consultar: {_names(chosen)}.\n\n"
-        "Escreva sua frase de abertura (uma frase):"
+        f"Especialista(s) que você vai trazer: {_names(chosen)}.\n\n"
+        "Escreva APENAS uma frase curta (no máximo 20 palavras) avisando que vai "
+        "consultá-lo(s) para responder. NÃO explique o tema, NÃO use títulos e "
+        "NÃO comece a responder a pergunta."
     )
-    async for ev in _stream_agent(opener, opening_prompt, cfg, bubble_id="open", agent_ids=[orch["id"]]):
-        yield ev
+    opening = _first_sentence(await _collect(opener, opening_prompt, cfg)) or (
+        f"Boa pergunta — vou trazer {_names(chosen)} pra isso."
+    )
+    yield {"type": "agent_begin", "bubbleId": "open", "agentIds": [orch["id"]]}
+    yield {"type": "text", "bubbleId": "open", "text": opening}
+    yield {"type": "agent_done", "bubbleId": "open"}
 
     # 2) Each specialist thinks out loud and leaves a SHORT note (captured for
     #    the joint answer, not presented as a full standalone reply).

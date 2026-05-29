@@ -49,6 +49,19 @@ DASHBOARD_HTML = PROJECT_DIR / "WaterBrain Dashboard.html"
 app = FastAPI(title="WaterBrain", version="1.0.0")
 
 
+# The prototype is plain HTML/CSS/JSX transpiled in the browser; if the browser
+# caches an old .jsx/.css it can run against a newer backend protocol and break
+# (e.g. bubbles all collapsing to one agent). Disable caching for app assets.
+@app.middleware("http")
+async def no_store_assets(request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    if path in ("/", "/chat", "/dashboard") or path.endswith((".html", ".jsx", ".js", ".css")):
+        response.headers["Cache-Control"] = "no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
+
 # ---------------------------------------------------------------- API routes
 @app.get("/api/health")
 async def health() -> dict:
