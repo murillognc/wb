@@ -110,79 +110,31 @@ function PanelIcon() {
 /* ============================================================
    HEADER
    ============================================================ */
-function HeaderV2({ time, keySet = true, onOpenSettings, onOpenAdmin, sidebarOpen = true, onToggleSidebar }) {
-  const timeStr = useMemo(() => {
-    const h = time.getHours().toString().padStart(2, "0");
-    const m = time.getMinutes().toString().padStart(2, "0");
-    return `${h}:${m}`;
-  }, [time]);
-
+// Slim top bar for the main column. The brand + user + settings all live in
+// the floating sidebar now, so this only appears when the sidebar is collapsed
+// — just the re-open button + a compact wordmark.
+function HeaderV2({ sidebarOpen = true, onToggleSidebar }) {
+  if (sidebarOpen) return null;
   return (
-    <header className="wb-header">
-      <div className="wb-header__left">
-        {!sidebarOpen && (
-          <>
-            <button
-              type="button"
-              className="wb-icon-btn"
-              onClick={onToggleSidebar}
-              title="Abrir painel"
-              aria-label="Abrir painel"
-            >
-              <PanelIcon />
-            </button>
-            <span className="wb-brand__mark">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path
-                  d="M7 1.5C5 1.5 3.5 3 3.5 5c0 1.1.4 1.9 1.1 2.6-.7.7-1.1 1.7-1.1 2.9 0 1.4 1 2.5 2.4 2.5.7 0 1.2-.2 1.6-.6.3.4.9.6 1.5.6 1.4 0 2.4-1.1 2.4-2.5 0-1.2-.4-2.2-1.1-2.9C10.6 6.9 11 6.1 11 5c0-2-1.5-3.5-3.5-3.5z"
-                  fill="currentColor"
-                />
-              </svg>
-            </span>
-            <span className="wb-brand__name">Water<b>Brain</b></span>
-          </>
-        )}
-      </div>
-
-      <div className="wb-tele"></div>
-
-      <div className="wb-user">
-        {onOpenAdmin && (
-          <button
-            type="button"
-            className="wb-settings-btn"
-            onClick={onOpenAdmin}
-            title="Administração"
-            aria-label="Administração"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" />
-              <rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" />
-              <rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" />
-              <rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" />
-            </svg>
-          </button>
-        )}
-        <button
-          type="button"
-          className={"wb-settings-btn" + (keySet ? "" : " is-warn")}
-          onClick={onOpenSettings}
-          title={keySet ? "Configurações" : "Configure a chave da API"}
-          aria-label="Configurações"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M8 5.2a2.8 2.8 0 100 5.6 2.8 2.8 0 000-5.6z" stroke="currentColor" strokeWidth="1.3" />
-            <path d="M8 1.5l.5 1.6a5.4 5.4 0 011.4.6l1.5-.8 1.2 1.2-.8 1.5q.36.66.6 1.4l1.6.5v1.7l-1.6.5a5.4 5.4 0 01-.6 1.4l.8 1.5-1.2 1.2-1.5-.8a5.4 5.4 0 01-1.4.6L8 14.5l-.5-1.6a5.4 5.4 0 01-1.4-.6l-1.5.8-1.2-1.2.8-1.5a5.4 5.4 0 01-.6-1.4L1.5 8.5V6.8l1.6-.5q.24-.74.6-1.4l-.8-1.5 1.2-1.2 1.5.8q.66-.36 1.4-.6L8 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-          </svg>
-          {!keySet && <span className="wb-settings-btn__dot" aria-hidden="true"></span>}
-        </button>
-        <span className="wb-brand__div"></span>
-        <div className="wb-user__info">
-          <span className="wb-user__name">Murillo Gonçalves</span>
-          <span className="wb-user__role">DIRETORIA · GR-WATER</span>
-        </div>
-        <div className="wb-user__avatar">Mg</div>
-      </div>
+    <header className="wb-topbar">
+      <button
+        type="button"
+        className="wb-icon-btn"
+        onClick={onToggleSidebar}
+        title="Abrir painel"
+        aria-label="Abrir painel"
+      >
+        <PanelIcon />
+      </button>
+      <span className="wb-brand__mark">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path
+            d="M7 1.5C5 1.5 3.5 3 3.5 5c0 1.1.4 1.9 1.1 2.6-.7.7-1.1 1.7-1.1 2.9 0 1.4 1 2.5 2.4 2.5.7 0 1.2-.2 1.6-.6.3.4.9.6 1.5.6 1.4 0 2.4-1.1 2.4-2.5 0-1.2-.4-2.2-1.1-2.9C10.6 6.9 11 6.1 11 5c0-2-1.5-3.5-3.5-3.5z"
+            fill="currentColor"
+          />
+        </svg>
+      </span>
+      <span className="wb-brand__name">Water<b>Brain</b></span>
     </header>
   );
 }
@@ -396,7 +348,8 @@ function Caret({ open }) {
   );
 }
 
-function Roster({ selectedId, onSelect, showRecent, personas = PERSONAS_V2, onCollapse }) {
+function Roster({ selectedId, onSelect, showRecent, personas = PERSONAS_V2, onCollapse,
+                  width, keySet = true, onOpenSettings, onOpenAdmin }) {
   const [tip, setTip] = React.useState(null);
   const [agentsOpen, setAgentsOpen] = React.useState(() => {
     try { return localStorage.getItem("wb-agents-open") !== "0"; } catch (_) { return true; }
@@ -431,7 +384,7 @@ function Roster({ selectedId, onSelect, showRecent, personas = PERSONAS_V2, onCo
   const handleLeave = () => setTip(null);
 
   return (
-    <aside className="wb-roster" onMouseLeave={handleLeave}>
+    <aside className="wb-roster" style={width ? { width } : undefined} onMouseLeave={handleLeave}>
       <div className="wb-side-head">
         <div className="wb-side-brand">
           <div className="wb-side-brand__id">
@@ -541,6 +494,49 @@ function Roster({ selectedId, onSelect, showRecent, personas = PERSONAS_V2, onCo
           )}
         </div>
       )}
+
+      <div className="wb-side-user">
+        <div className="wb-side-user__who">
+          <div className="wb-user__avatar">Mg</div>
+          <div className="wb-side-user__info">
+            <span className="wb-side-user__name">Murillo Gonçalves</span>
+            <span className="wb-side-user__role">DIRETORIA · GR-WATER</span>
+          </div>
+        </div>
+        <div className="wb-side-user__actions">
+          {onOpenAdmin && (
+            <button
+              type="button"
+              className="wb-icon-btn"
+              onClick={onOpenAdmin}
+              title="Administração"
+              aria-label="Administração"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" />
+                <rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" />
+                <rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" />
+                <rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" />
+              </svg>
+            </button>
+          )}
+          {onOpenSettings && (
+            <button
+              type="button"
+              className={"wb-icon-btn" + (keySet ? "" : " is-warn")}
+              onClick={onOpenSettings}
+              title={keySet ? "Configurações" : "Configure a chave da API"}
+              aria-label="Configurações"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M8 5.2a2.8 2.8 0 100 5.6 2.8 2.8 0 000-5.6z" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M8 1.5l.5 1.6a5.4 5.4 0 011.4.6l1.5-.8 1.2 1.2-.8 1.5q.36.66.6 1.4l1.6.5v1.7l-1.6.5a5.4 5.4 0 01-.6 1.4l.8 1.5-1.2 1.2-1.5-.8a5.4 5.4 0 01-1.4.6L8 14.5l-.5-1.6a5.4 5.4 0 01-1.4-.6l-1.5.8-1.2-1.2.8-1.5a5.4 5.4 0 01-.6-1.4L1.5 8.5V6.8l1.6-.5q.24-.74.6-1.4l-.8-1.5 1.2-1.2 1.5.8q.66-.36 1.4-.6L8 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+              </svg>
+              {!keySet && <span className="wb-icon-btn__dot" aria-hidden="true"></span>}
+            </button>
+          )}
+        </div>
+      </div>
 
       <PersonaTooltip data={tip} />
     </aside>

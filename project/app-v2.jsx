@@ -269,38 +269,32 @@ function AppV2() {
 
   return (
     <div className="wb-app">
-      <HeaderV2
-        time={time}
-        keySet={!config || config.keySet}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onOpenAdmin={() => setAdminOpen(true)}
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={toggleSidebar}
-      />
+      {sidebarOpen && (
+        <Roster
+          width={rosterW}
+          selectedId={selectedId}
+          onSelect={(p) => setSelectedId(p.id)}
+          showRecent={t.showContinue}
+          personas={enabledAgents}
+          onCollapse={toggleSidebar}
+          keySet={!config || config.keySet}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenAdmin={() => setAdminOpen(true)}
+        />
+      )}
+      {sidebarOpen && (
+        <div
+          className={"wb-resize" + (dragging ? " is-dragging" : "")}
+          onMouseDown={startResize}
+          onDoubleClick={resetResize}
+          role="separator"
+          aria-orientation="vertical"
+          title="Arraste para redimensionar · duplo-clique para resetar"
+        ></div>
+      )}
 
-      <div
-        className="wb-body"
-        style={{ gridTemplateColumns: sidebarOpen ? `${rosterW}px 6px 1fr` : "1fr" }}
-      >
-        {sidebarOpen && (
-          <Roster
-            selectedId={selectedId}
-            onSelect={(p) => setSelectedId(p.id)}
-            showRecent={t.showContinue}
-            personas={enabledAgents}
-            onCollapse={toggleSidebar}
-          />
-        )}
-        {sidebarOpen && (
-          <div
-            className={"wb-resize" + (dragging ? " is-dragging" : "")}
-            onMouseDown={startResize}
-            onDoubleClick={resetResize}
-            role="separator"
-            aria-orientation="vertical"
-            title="Arraste para redimensionar · duplo-clique para resetar"
-          ></div>
-        )}
+      <main className="wb-main">
+        <HeaderV2 sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />
         <Query
           persona={selectedPersona}
           joinedPersonas={joinedAgents
@@ -313,9 +307,8 @@ function AppV2() {
           generating={generating}
           onStop={handleStop}
         />
-      </div>
-
-      <FooterV2 />
+        <FooterV2 />
+      </main>
 
       {settingsOpen && (
         <SettingsModal
