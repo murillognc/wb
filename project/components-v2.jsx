@@ -96,9 +96,21 @@ const QUICK_PROMPTS = {
 };
 
 /* ============================================================
+   PANEL ICON — collapse / expand the left sidebar
+   ============================================================ */
+function PanelIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.3" />
+      <line x1="6.4" y1="3" x2="6.4" y2="13" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+/* ============================================================
    HEADER
    ============================================================ */
-function HeaderV2({ time, keySet = true, onOpenSettings, onOpenAdmin }) {
+function HeaderV2({ time, keySet = true, onOpenSettings, onOpenAdmin, sidebarOpen = true, onToggleSidebar }) {
   const timeStr = useMemo(() => {
     const h = time.getHours().toString().padStart(2, "0");
     const m = time.getMinutes().toString().padStart(2, "0");
@@ -107,29 +119,29 @@ function HeaderV2({ time, keySet = true, onOpenSettings, onOpenAdmin }) {
 
   return (
     <header className="wb-header">
-      <div className="wb-brand">
-        <div className="wb-brand__mark">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path
-              d="M7 1.5C5 1.5 3.5 3 3.5 5c0 1.1.4 1.9 1.1 2.6-.7.7-1.1 1.7-1.1 2.9 0 1.4 1 2.5 2.4 2.5.7 0 1.2-.2 1.6-.6.3.4.9.6 1.5.6 1.4 0 2.4-1.1 2.4-2.5 0-1.2-.4-2.2-1.1-2.9C10.6 6.9 11 6.1 11 5c0-2-1.5-3.5-3.5-3.5z"
-              fill="currentColor"
-            />
-          </svg>
-        </div>
-        <span className="wb-brand__name">Water<b>Brain</b></span>
-        <span className="wb-brand__div"></span>
-        <a href="WaterBrain Homepage.html" className="wb-brand__co" title="GR Water Solutions" aria-label="GR Water Solutions">
-          <img
-            className="wb-brand__co-img wb-brand__co-img--dark"
-            src="assets/logo-grws-fonte-branca.png"
-            alt="GR Water Solutions"
-          />
-          <img
-            className="wb-brand__co-img wb-brand__co-img--light"
-            src="assets/logo-grws-fonte-preta.png"
-            alt="GR Water Solutions"
-          />
-        </a>
+      <div className="wb-header__left">
+        {!sidebarOpen && (
+          <>
+            <button
+              type="button"
+              className="wb-icon-btn"
+              onClick={onToggleSidebar}
+              title="Abrir painel"
+              aria-label="Abrir painel"
+            >
+              <PanelIcon />
+            </button>
+            <span className="wb-brand__mark">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path
+                  d="M7 1.5C5 1.5 3.5 3 3.5 5c0 1.1.4 1.9 1.1 2.6-.7.7-1.1 1.7-1.1 2.9 0 1.4 1 2.5 2.4 2.5.7 0 1.2-.2 1.6-.6.3.4.9.6 1.5.6 1.4 0 2.4-1.1 2.4-2.5 0-1.2-.4-2.2-1.1-2.9C10.6 6.9 11 6.1 11 5c0-2-1.5-3.5-3.5-3.5z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+            <span className="wb-brand__name">Water<b>Brain</b></span>
+          </>
+        )}
       </div>
 
       <div className="wb-tele"></div>
@@ -384,7 +396,7 @@ function Caret({ open }) {
   );
 }
 
-function Roster({ selectedId, onSelect, showRecent, personas = PERSONAS_V2 }) {
+function Roster({ selectedId, onSelect, showRecent, personas = PERSONAS_V2, onCollapse }) {
   const [tip, setTip] = React.useState(null);
   const [agentsOpen, setAgentsOpen] = React.useState(() => {
     try { return localStorage.getItem("wb-agents-open") !== "0"; } catch (_) { return true; }
@@ -420,6 +432,50 @@ function Roster({ selectedId, onSelect, showRecent, personas = PERSONAS_V2 }) {
 
   return (
     <aside className="wb-roster" onMouseLeave={handleLeave}>
+      <div className="wb-side-head">
+        <div className="wb-side-brand">
+          <div className="wb-side-brand__id">
+            <span className="wb-brand__mark">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path
+                  d="M7 1.5C5 1.5 3.5 3 3.5 5c0 1.1.4 1.9 1.1 2.6-.7.7-1.1 1.7-1.1 2.9 0 1.4 1 2.5 2.4 2.5.7 0 1.2-.2 1.6-.6.3.4.9.6 1.5.6 1.4 0 2.4-1.1 2.4-2.5 0-1.2-.4-2.2-1.1-2.9C10.6 6.9 11 6.1 11 5c0-2-1.5-3.5-3.5-3.5z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+            <span className="wb-brand__name">Water<b>Brain</b></span>
+          </div>
+          {onCollapse && (
+            <button
+              type="button"
+              className="wb-icon-btn"
+              onClick={onCollapse}
+              title="Recolher painel"
+              aria-label="Recolher painel"
+            >
+              <PanelIcon />
+            </button>
+          )}
+        </div>
+        <a
+          href="WaterBrain Homepage.html"
+          className="wb-side-co"
+          title="GR Water Solutions"
+          aria-label="GR Water Solutions"
+        >
+          <img
+            className="wb-brand__co-img wb-brand__co-img--dark"
+            src="assets/logo-grws-fonte-branca.png"
+            alt="GR Water Solutions"
+          />
+          <img
+            className="wb-brand__co-img wb-brand__co-img--light"
+            src="assets/logo-grws-fonte-preta.png"
+            alt="GR Water Solutions"
+          />
+        </a>
+      </div>
+
       <div className="wb-roster__head">
         <button
           type="button"
@@ -576,7 +632,7 @@ function AgentReply({ msg }) {
 /* ============================================================
    QUERY PANEL (right column)
    ============================================================ */
-function Query({ persona, joinedPersonas = [], thinkingIds = [], time, messages, onSend }) {
+function Query({ persona, joinedPersonas = [], thinkingIds = [], time, messages, onSend, generating, onStop }) {
   const greeting = useMemo(() => {
     const h = time.getHours();
     if (h < 5) return "Boa madrugada";
@@ -609,7 +665,7 @@ function Query({ persona, joinedPersonas = [], thinkingIds = [], time, messages,
 
   function handleSend() {
     const text = draft.trim();
-    if (!text) return;
+    if (!text || generating) return;
     onSend(text);
     setDraft("");
   }
@@ -733,14 +789,21 @@ function Query({ persona, joinedPersonas = [], thinkingIds = [], time, messages,
               </button>
             </div>
             <button
-              className={"wb-send" + (draft.trim() ? " is-active" : "")}
-              disabled={!draft.trim()}
-              onClick={handleSend}
-              aria-label="Enviar"
+              className={"wb-send" + ((generating || draft.trim()) ? " is-active" : "") + (generating ? " is-stop" : "")}
+              disabled={!generating && !draft.trim()}
+              onClick={generating ? onStop : handleSend}
+              aria-label={generating ? "Parar resposta" : "Enviar"}
+              title={generating ? "Parar resposta" : "Enviar"}
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M7 11V3M3.5 6.5L7 3l3.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              {generating ? (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <rect x="3.5" y="3.5" width="7" height="7" rx="1.6" fill="currentColor" />
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M7 11V3M3.5 6.5L7 3l3.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
             </button>
           </div>
         </div>

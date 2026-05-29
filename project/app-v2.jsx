@@ -12,6 +12,7 @@ const ROSTER_W_KEY = "wb-roster-w";
 const ROSTER_W_MIN = 320;
 const ROSTER_W_MAX = 640;
 const ROSTER_W_DEFAULT = 440;
+const SIDEBAR_OPEN_KEY = "wb-sidebar-open";
 
 function AppV2() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS_V2);
@@ -61,6 +62,17 @@ function AppV2() {
   const [messages, setMessages] = useState([]);
   const [joinedAgents, setJoinedAgents] = useState([]);
   const [thinkingIds, setThinkingIds] = useState([]); // personas currently “thinking”
+  const [generating, setGenerating] = useState(false); // a reply is streaming
+  const abortRef = useRef(null);                       // cancels the in-flight reply
+
+  // === Left sidebar (roster) collapse — persisted ===
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    try { return localStorage.getItem(SIDEBAR_OPEN_KEY) !== "0"; } catch (_) { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(SIDEBAR_OPEN_KEY, sidebarOpen ? "1" : "0"); } catch (_) {}
+  }, [sidebarOpen]);
+  const toggleSidebar = useCallback(() => setSidebarOpen((v) => !v), []);
 
   // query() is stateless, so we replay recent turns with each request. A ref
   // keeps the latest thread available inside handleSend without stale closures.
@@ -171,6 +183,11 @@ function AppV2() {
     setMessages((prev) => [...prev, { id: `u-${stamp}`, type: "user", text }]);
     setThinkingIds((prev) => Array.from(new Set([...prev, primary.id])));
 
+    // New AbortController so the user can cancel this reply (the ⏹ button).
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setGenerating(true);
+
     const patchBubble = (id, patch) =>
       setMessages((prev) => prev.map((m) => (m.id === bubbleId(id) ? { ...m, ...patch } : m)));
 
@@ -179,7 +196,7 @@ function AppV2() {
       .map((m) => ({ role: m.type === "user" ? "user" : "assistant", text: m.text }));
 
     WBApi.streamChat(
-      { personaId: primary.id, message: text, history },
+      { personaId: primary.id, message: text, history, signal: controller.signal },
       {
         onAgentBegin: (agentId) => {
           const ag = agentById(agentId);
@@ -227,10 +244,28 @@ function AppV2() {
         },
         onDone: () => {
           setThinkingIds((prev) => prev.filter((id) => id !== primary.id));
+          setGenerating(false);
+          abortRef.current = null;
         },
       }
     );
   }, [selectedId]);
+
+  // Cancel the streaming reply — aborts the fetch and freezes the bubbles
+  // where they are (any partial answer stays visible).
+  const handleStop = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    setGenerating(false);
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.streaming ? { ...m, streaming: false, thinkingActive: false, status: null } : m
+      )
+    );
+    setThinkingIds([]);
+  }, []);
 
   return (
     <div className="wb-app">
@@ -239,26 +274,33 @@ function AppV2() {
         keySet={!config || config.keySet}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenAdmin={() => setAdminOpen(true)}
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={toggleSidebar}
       />
 
       <div
         className="wb-body"
-        style={{ gridTemplateColumns: `${rosterW}px 6px 1fr` }}
+        style={{ gridTemplateColumns: sidebarOpen ? `${rosterW}px 6px 1fr` : "1fr" }}
       >
-        <Roster
-          selectedId={selectedId}
-          onSelect={(p) => setSelectedId(p.id)}
-          showRecent={t.showContinue}
-          personas={enabledAgents}
-        />
-        <div
-          className={"wb-resize" + (dragging ? " is-dragging" : "")}
-          onMouseDown={startResize}
-          onDoubleClick={resetResize}
-          role="separator"
-          aria-orientation="vertical"
-          title="Arraste para redimensionar · duplo-clique para resetar"
-        ></div>
+        {sidebarOpen && (
+          <Roster
+            selectedId={selectedId}
+            onSelect={(p) => setSelectedId(p.id)}
+            showRecent={t.showContinue}
+            personas={enabledAgents}
+            onCollapse={toggleSidebar}
+          />
+        )}
+        {sidebarOpen && (
+          <div
+            className={"wb-resize" + (dragging ? " is-dragging" : "")}
+            onMouseDown={startResize}
+            onDoubleClick={resetResize}
+            role="separator"
+            aria-orientation="vertical"
+            title="Arraste para redimensionar · duplo-clique para resetar"
+          ></div>
+        )}
         <Query
           persona={selectedPersona}
           joinedPersonas={joinedAgents
@@ -268,6 +310,8 @@ function AppV2() {
           time={time}
           messages={messages}
           onSend={handleSend}
+          generating={generating}
+          onStop={handleStop}
         />
       </div>
 

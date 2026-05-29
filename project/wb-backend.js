@@ -94,11 +94,14 @@
       if (h.onDone) h.onDone();
     };
 
+    var isAbort = function (err) { return err && err.name === "AbortError"; };
+
     let res;
     try {
       res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: req.signal,            // user can cancel the in-flight reply
         body: JSON.stringify({
           persona_id: req.personaId,
           message: req.message,
@@ -106,7 +109,8 @@
         }),
       });
     } catch (err) {
-      if (h.onError) h.onError("Nao foi possivel falar com o servidor. Ele esta rodando?");
+      // A user-triggered cancel is not an error — just stop quietly.
+      if (!isAbort(err) && h.onError) h.onError("Nao foi possivel falar com o servidor. Ele esta rodando?");
       finish();
       return;
     }
@@ -149,7 +153,7 @@
         }
       }
     } catch (err) {
-      if (h.onError) h.onError("Conexao interrompida durante a resposta.");
+      if (!isAbort(err) && h.onError) h.onError("Conexao interrompida durante a resposta.");
     } finally {
       finish();
     }

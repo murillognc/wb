@@ -484,7 +484,7 @@ body.is-resizing * {
 }
 .wb-mono.is-thinking { overflow: visible; }
 .wb-mono__ring {
-  --rt: 3px;                                  /* ring thickness */
+  --rt: 3.5px;                                /* ring thickness */
   position: absolute;
   inset: calc(-1 * var(--rt));
   border-radius: 50%;
@@ -494,8 +494,8 @@ body.is-resizing * {
     #FA981A, #5E83B8, #4FA060, #9B59B6, #E0556E, #2BB3A3, #FA981A);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--rt)), #000 calc(100% - var(--rt)));
           mask: radial-gradient(farthest-side, transparent calc(100% - var(--rt)), #000 calc(100% - var(--rt)));
-  opacity: 0.9;
-  filter: saturate(0.5) brightness(0.5);      /* dim base track */
+  opacity: 1;
+  filter: saturate(0.95) brightness(0.82);    /* base track — visível, não apagado */
 }
 /* The bright sweeping arc: same fixed gradient, windowed by a rotating
    conic mask and intersected with the ring shape. */
@@ -508,14 +508,14 @@ body.is-resizing * {
     #FA981A, #5E83B8, #4FA060, #9B59B6, #E0556E, #2BB3A3, #FA981A);
   -webkit-mask:
     radial-gradient(farthest-side, transparent calc(100% - var(--rt)), #000 calc(100% - var(--rt))),
-    conic-gradient(from var(--wb-ang), #000 0deg, transparent 150deg, transparent 360deg);
+    conic-gradient(from var(--wb-ang), #000 0deg, transparent 170deg, transparent 360deg);
   -webkit-mask-composite: source-in;
   mask:
     radial-gradient(farthest-side, transparent calc(100% - var(--rt)), #000 calc(100% - var(--rt))),
-    conic-gradient(from var(--wb-ang), #000 0deg, transparent 150deg, transparent 360deg);
+    conic-gradient(from var(--wb-ang), #000 0deg, transparent 170deg, transparent 360deg);
   mask-composite: intersect;
-  filter: brightness(1.4) saturate(1.3) drop-shadow(0 0 5px rgba(255, 255, 255, 0.22));
-  animation: wb-ring-spin 1.1s linear infinite;
+  filter: brightness(1.65) saturate(1.6) drop-shadow(0 0 8px rgba(255, 255, 255, 0.45));
+  animation: wb-ring-spin 1s linear infinite;
 }
 .wb-mono--md .wb-mono__ring { --rt: 2.5px; }
 .wb-mono--sm .wb-mono__ring { --rt: 2px; }
@@ -977,8 +977,8 @@ body.is-resizing * {
   40%           { opacity: 1;    transform: translateY(-2px); }
 }
 .wb-active__item.is-thinking .wb-active__mono {
-  /* The comet ring carries the colour now — keep just a soft neutral glow. */
-  box-shadow: 0 0 16px -2px rgba(255, 255, 255, 0.18);
+  /* The comet ring carries the colour now — add a brighter neutral glow. */
+  box-shadow: 0 0 22px -2px rgba(255, 255, 255, 0.34);
   animation: wb-thinking-pulse 1.6s ease-in-out infinite;
 }
 @keyframes wb-thinking-pulse {
@@ -1772,4 +1772,81 @@ body.is-resizing * {
   font-style: italic;
   font-size: 12.5px;
   padding-top: 2px;
+}
+
+/* ============================================================
+   STOP BUTTON — send button morphs into "parar" while streaming
+   ============================================================ */
+.wb-send.is-stop::before {
+  animation: wb-stop-pulse 1.5s ease-in-out infinite;
+}
+.wb-send.is-stop svg { transform: none; }
+@keyframes wb-stop-pulse {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.14); }
+}
+
+/* ============================================================
+   SIDEBAR BRAND HEAD (Claude-Code-style) + collapse/expand
+   ============================================================ */
+/* Roster now carries a brand head above the "Agentes" section. */
+.wb-roster { grid-template-rows: auto auto 1fr auto; }
+
+.wb-side-head {
+  padding: 16px 22px 14px;
+  border-bottom: 1px solid var(--wb-rule);
+}
+.wb-side-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.wb-side-brand__id {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.wb-side-co {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  margin-top: 11px;
+  opacity: 0.72;
+  transition: opacity 200ms ease;
+  text-decoration: none;
+}
+.wb-side-co:hover { opacity: 1; }
+/* Only override the size — leave display to the --dark/--light theme rules,
+   otherwise both logos would show at once. */
+.wb-side-co .wb-brand__co-img { height: 18px; width: auto; }
+
+/* Generic icon button (panel toggle / open) — matches settings buttons */
+.wb-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid var(--wb-border-strong);
+  color: var(--wb-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 150ms, border-color 150ms, background 150ms;
+}
+.wb-icon-btn:hover {
+  color: var(--wb-text);
+  border-color: var(--wb-text-muted);
+  background: var(--wb-row-hover);
+}
+
+/* Header left zone — empty when the sidebar is open; shows the open button
+   + a compact wordmark when the sidebar is collapsed. */
+.wb-header__left {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
 }
