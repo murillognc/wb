@@ -738,10 +738,18 @@ body.is-resizing * {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px 4px 14px;
+  align-items: center;          /* center the conversation column (Claude-style) */
+  padding: 16px 24px 14px;
   scrollbar-width: thin;
   scrollbar-color: var(--wb-border-strong) transparent;
+}
+/* Centered conversation column */
+.wb-chat__inner {
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 .wb-chat::-webkit-scrollbar { width: 6px; }
 .wb-chat::-webkit-scrollbar-thumb {
@@ -759,58 +767,57 @@ body.is-resizing * {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* User message — right aligned bubble */
+/* User message — right-aligned neutral bubble (Claude-style) */
 .wb-msg-user {
   align-self: flex-end;
-  max-width: 72%;
-  padding: 11px 16px;
-  background: linear-gradient(135deg, rgba(17, 160, 211, 0.14) 0%, rgba(17, 108, 211, 0.10) 100%);
-  border: 1px solid rgba(17, 160, 211, 0.22);
-  border-radius: 14px;
-  border-bottom-right-radius: 4px;
+  max-width: 80%;
+  padding: 11px 17px;
+  background: var(--wb-panel-elev);
+  border: 1px solid var(--wb-border);
+  border-radius: 18px;
   font-family: var(--grws-font-body);
-  font-size: 14px;
+  font-size: 14.5px;
   color: var(--wb-text-strong);
-  line-height: 1.5;
+  line-height: 1.55;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
 [data-theme="light"] .wb-msg-user {
-  background: linear-gradient(135deg, #EBF3FF 0%, #DDE9FB 100%);
-  border-color: #B6CFEF;
+  background: #F1F3F8;
+  border-color: #E1E6EF;
   color: var(--wb-text-strong);
 }
 
-/* Agent reply — left aligned card with avatar */
+/* Agent reply — no bubble; the text sits directly on the background. The
+   coloured avatar + name still identify which specialist is speaking. */
 .wb-msg-agent {
-  align-self: flex-start;
+  align-self: stretch;
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  max-width: 80%;
+  gap: 12px;
+  max-width: 100%;
 }
 .wb-msg-agent__body {
   flex: 1;
   min-width: 0;
-  padding: 11px 16px;
-  background: var(--wb-panel-elev);
-  border: 1px solid var(--wb-border);
-  border-radius: 14px;
-  border-top-left-radius: 4px;
+  padding: 3px 0 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
 }
 .wb-msg-agent__name {
   font-family: var(--grws-font-display);
   font-weight: 700;
   font-size: 11px;
   letter-spacing: 0.04em;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
   line-height: 1;
 }
 .wb-msg-agent__text {
   font-family: var(--grws-font-body);
-  font-size: 14px;
+  font-size: 14.5px;
   color: var(--wb-text);
-  line-height: 1.5;
+  line-height: 1.6;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
@@ -1750,7 +1757,8 @@ body.is-resizing * {
   word-wrap: break-word;
 }
 .wb-msg-agent--error .wb-msg-agent__body {
-  border-color: rgba(250, 152, 26, 0.4);
+  border-left: 2px solid rgba(250, 152, 26, 0.5);
+  padding-left: 12px;
 }
 .wb-msg-agent--error .wb-msg-agent__text { color: var(--wb-accent); }
 

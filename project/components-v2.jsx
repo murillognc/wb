@@ -757,13 +757,15 @@ function Query({ persona, joinedPersonas = [], thinkingIds = [], time, messages,
         </div>
       )}
 
-      {/* Chat thread */}
+      {/* Chat thread — centered column (Claude-style) */}
       <div className="wb-chat" ref={chatRef}>
-        {messages.map((m) => {
-          if (m.type === "user") return <UserMessage key={m.id} msg={m} />;
-          if (m.type === "reply") return <AgentReply key={m.id} msg={m} />;
-          return null;
-        })}
+        <div className="wb-chat__inner">
+          {messages.map((m) => {
+            if (m.type === "user") return <UserMessage key={m.id} msg={m} />;
+            if (m.type === "reply") return <AgentReply key={m.id} msg={m} />;
+            return null;
+          })}
+        </div>
       </div>
 
       {/* Composer — compact, centered, refined */}
