@@ -1963,3 +1963,27 @@ body.is-resizing * {
   box-shadow: 0 0 6px var(--wb-accent);
 }
 .wb-icon-btn { position: relative; }
+
+/* ============================================================
+   JOINT / MULTI-AGENT REPLY — avatar cluster + name separator
+   ============================================================ */
+.wb-msg-agent__avatars {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+}
+/* Overlap the discs slightly when more than one agent shares a bubble */
+.wb-msg-agent__avatars .wb-mono + .wb-mono {
+  margin-left: -10px;
+  box-shadow: 0 0 0 2px var(--wb-bg);   /* ring of the background to separate them */
+}
+.wb-msg-agent__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.wb-msg-agent__plus {
+  color: var(--wb-text-subtle);
+  font-weight: 400;
+  margin: 0 2px;
+}

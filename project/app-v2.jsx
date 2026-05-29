@@ -175,9 +175,10 @@ function AppV2() {
     const primary = all.find((p) => p.id === selectedId) || all[0];
     if (!primary) return;
     const agentById = (id) => all.find((a) => a.id === id) || primary;
-    const bubbleId = (id) => `r-${stamp}-${id}`;
+    const key = (bubbleId) => `b-${stamp}-${bubbleId}`;
     const accText = {};
     const accThink = {};
+    const bubbleAgents = {}; // bubbleId -> [persona ids] (for thinking cleanup)
 
     // User message + primary starts "thinking"
     setMessages((prev) => [...prev, { id: `u-${stamp}`, type: "user", text }]);
@@ -188,8 +189,8 @@ function AppV2() {
     abortRef.current = controller;
     setGenerating(true);
 
-    const patchBubble = (id, patch) =>
-      setMessages((prev) => prev.map((m) => (m.id === bubbleId(id) ? { ...m, ...patch } : m)));
+    const patch = (bubbleId, p) =>
+      setMessages((prev) => prev.map((m) => (m.id === key(bubbleId) ? { ...m, ...p } : m)));
 
     const history = messagesRef.current
       .filter((m) => (m.type === "user" || m.type === "reply") && !m.error && m.text)
@@ -198,52 +199,60 @@ function AppV2() {
     WBApi.streamChat(
       { personaId: primary.id, message: text, history, signal: controller.signal },
       {
-        onAgentBegin: (agentId) => {
-          const ag = agentById(agentId);
-          if (agentId !== primary.id) {
-            setJoinedAgents((prev) => (prev.includes(agentId) ? prev : [...prev, agentId]));
-          }
-          setThinkingIds((prev) => Array.from(new Set([...prev, agentId])));
-          accText[agentId] = "";
-          accThink[agentId] = "";
+        // A bubble can be attributed to one OR several agents (the joint final
+        // answer lists the orchestrator + specialists).
+        onAgentBegin: (bubbleId, agentIds) => {
+          const ids = agentIds && agentIds.length ? agentIds : [primary.id];
+          const agents = ids.map(agentById);
+          bubbleAgents[bubbleId] = agents.map((a) => a.id);
+          agents.forEach((a) => {
+            if (a.id !== primary.id) {
+              setJoinedAgents((prev) => (prev.includes(a.id) ? prev : [...prev, a.id]));
+            }
+          });
+          setThinkingIds((prev) => Array.from(new Set([...prev, ...agents.map((a) => a.id)])));
+          accText[bubbleId] = "";
+          accThink[bubbleId] = "";
           setMessages((prev) => [
             ...prev,
             {
-              id: bubbleId(agentId), type: "reply", agent: ag,
+              id: key(bubbleId), type: "reply", agents, agent: agents[0],
               text: "", thinking: "", status: "Pensando…",
               streaming: true, thinkingActive: true,
             },
           ]);
         },
-        onStatus: (agentId, txt) => { if (agentId) patchBubble(agentId, { status: txt }); },
-        onThinking: (agentId, chunk) => {
-          accThink[agentId] = (accThink[agentId] || "") + chunk;
-          patchBubble(agentId, { thinking: accThink[agentId] });
+        onStatus: (bubbleId, txt) => { if (bubbleId) patch(bubbleId, { status: txt }); },
+        onThinking: (bubbleId, chunk) => {
+          accThink[bubbleId] = (accThink[bubbleId] || "") + chunk;
+          patch(bubbleId, { thinking: accThink[bubbleId] });
         },
-        onText: (agentId, chunk) => {
-          accText[agentId] = (accText[agentId] || "") + chunk;
-          patchBubble(agentId, { text: accText[agentId], thinkingActive: false });
+        onText: (bubbleId, chunk) => {
+          accText[bubbleId] = (accText[bubbleId] || "") + chunk;
+          patch(bubbleId, { text: accText[bubbleId], thinkingActive: false });
         },
-        onMeta: (agentId, cacheInfo) => { if (cacheInfo) patchBubble(agentId, { cacheInfo }); },
-        onAgentDone: (agentId) => {
-          patchBubble(agentId, { streaming: false, thinkingActive: false, status: null });
-          setThinkingIds((prev) => prev.filter((id) => id !== agentId));
+        onMeta: (bubbleId, cacheInfo) => { if (cacheInfo) patch(bubbleId, { cacheInfo }); },
+        onAgentDone: (bubbleId) => {
+          patch(bubbleId, { streaming: false, thinkingActive: false, status: null });
+          const ids = bubbleAgents[bubbleId] || [];
+          setThinkingIds((prev) => prev.filter((id) => !ids.includes(id)));
         },
-        onError: (errMsg, agentId) => {
-          if (agentId) {
-            patchBubble(agentId, {
-              text: accText[agentId] || errMsg, error: !accText[agentId],
+        onError: (errMsg, bubbleId) => {
+          if (bubbleId) {
+            patch(bubbleId, {
+              text: accText[bubbleId] || errMsg, error: !accText[bubbleId],
               streaming: false, thinkingActive: false, status: null,
             });
-            setThinkingIds((prev) => prev.filter((id) => id !== agentId));
+            const ids = bubbleAgents[bubbleId] || [];
+            setThinkingIds((prev) => prev.filter((id) => !ids.includes(id)));
           } else {
-            setMessages((prev) => [...prev, { id: `e-${stamp}`, type: "reply", agent: primary, text: errMsg, error: true }]);
+            setMessages((prev) => [...prev, { id: `e-${stamp}`, type: "reply", agents: [primary], agent: primary, text: errMsg, error: true }]);
           }
           const cfg = configRef.current;
           if (cfg && !cfg.keySet) setSettingsOpen(true);
         },
         onDone: () => {
-          setThinkingIds((prev) => prev.filter((id) => id !== primary.id));
+          setThinkingIds([]);
           setGenerating(false);
           abortRef.current = null;
         },

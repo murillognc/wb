@@ -54,28 +54,30 @@
     return res.json();
   }
 
+  // Events are addressed by bubbleId (a bubble may belong to several agents,
+  // e.g. the joint final answer). agent_begin also carries agentIds.
   function dispatch(ev, h) {
     switch (ev.type) {
       case "agent_begin":
-        if (h.onAgentBegin) h.onAgentBegin(ev.agentId, ev.role);
+        if (h.onAgentBegin) h.onAgentBegin(ev.bubbleId, ev.agentIds || []);
         break;
       case "agent_done":
-        if (h.onAgentDone) h.onAgentDone(ev.agentId);
+        if (h.onAgentDone) h.onAgentDone(ev.bubbleId);
         break;
       case "status":
-        if (h.onStatus) h.onStatus(ev.agentId, ev.text);
+        if (h.onStatus) h.onStatus(ev.bubbleId, ev.text);
         break;
       case "thinking":
-        if (h.onThinking) h.onThinking(ev.agentId, ev.text);
+        if (h.onThinking) h.onThinking(ev.bubbleId, ev.text);
         break;
       case "text":
-        if (h.onText) h.onText(ev.agentId, ev.text);
+        if (h.onText) h.onText(ev.bubbleId, ev.text);
         break;
       case "meta":
-        if (h.onMeta) h.onMeta(ev.agentId, ev.cacheInfo);
+        if (h.onMeta) h.onMeta(ev.bubbleId, ev.cacheInfo);
         break;
       case "error":
-        if (h.onError) h.onError(ev.message, ev.agentId);
+        if (h.onError) h.onError(ev.message, ev.bubbleId);
         break;
       default:
         break;

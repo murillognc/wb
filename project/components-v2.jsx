@@ -576,6 +576,8 @@ function AgentReply({ msg }) {
   // Strip the markdown code fences the backend wraps cache info in.
   const cache = (msg.cacheInfo || "").replace(/```/g, "").trim();
   const hasReasoning = !!(msg.thinking && msg.thinking.trim());
+  // A bubble can belong to several agents (the joint final answer).
+  const agents = msg.agents && msg.agents.length ? msg.agents : [msg.agent];
   const [open, setOpen] = useState(true);
   // Auto-collapse the reasoning once the agent stops thinking and starts answering.
   useEffect(() => {
@@ -583,11 +585,20 @@ function AgentReply({ msg }) {
   }, [msg.thinkingActive, msg.text]);
 
   return (
-    <div className={"wb-msg wb-msg-agent" + (msg.error ? " wb-msg-agent--error" : "")}>
-      <Mono persona={msg.agent} size="md" thinking={!!msg.thinkingActive} />
+    <div className={"wb-msg wb-msg-agent" + (msg.error ? " wb-msg-agent--error" : "") + (agents.length > 1 ? " wb-msg-agent--joint" : "")}>
+      <div className="wb-msg-agent__avatars">
+        {agents.map((a) => (
+          <Mono key={a.id} persona={a} size="md" thinking={!!msg.thinkingActive} />
+        ))}
+      </div>
       <div className="wb-msg-agent__body">
-        <div className="wb-msg-agent__name" style={{ color: msg.agent.color }}>
-          {msg.agent.role}
+        <div className="wb-msg-agent__name">
+          {agents.map((a, i) => (
+            <React.Fragment key={a.id}>
+              {i > 0 && <span className="wb-msg-agent__plus"> + </span>}
+              <span style={{ color: a.color }}>{a.role}</span>
+            </React.Fragment>
+          ))}
         </div>
 
         {(hasReasoning || msg.thinkingActive) && (
