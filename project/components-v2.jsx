@@ -291,15 +291,17 @@ function SettingsModal({ config, onClose, onSaved }) {
 /* ============================================================
    Monogram — replaces the old animated orb
    ============================================================ */
-function Mono({ persona, size }) {
+function Mono({ persona, size, thinking }) {
   const cls = "wb-mono" + (persona.isExecutive ? " wb-mono--exec" : "") +
     (size === "lg" ? " wb-active__mono" : "") +
     (size === "md" ? " wb-mono--md" : "") +
-    (size === "sm" ? " wb-mono--sm" : "");
+    (size === "sm" ? " wb-mono--sm" : "") +
+    (thinking ? " is-thinking" : "");
   const style = { "--mono-accent": persona.color };
   return (
     <div className={cls} style={style}>
-      {persona.initials}
+      {thinking && <span className="wb-mono__ring" aria-hidden="true"></span>}
+      <span className="wb-mono__txt">{persona.initials}</span>
     </div>
   );
 }
@@ -519,23 +521,52 @@ function ThinkingLabel() {
 }
 
 function AgentReply({ msg }) {
-  // Strip the markdown code fences the backend wraps cache info in — the
-  // dashboard isn't a markdown renderer, so show it as a plain mono footer.
+  // Strip the markdown code fences the backend wraps cache info in.
   const cache = (msg.cacheInfo || "").replace(/```/g, "").trim();
+  const hasReasoning = !!(msg.thinking && msg.thinking.trim());
+  const [open, setOpen] = useState(true);
+  // Auto-collapse the reasoning once the agent stops thinking and starts answering.
+  useEffect(() => {
+    if (!msg.thinkingActive && msg.text) setOpen(false);
+  }, [msg.thinkingActive, msg.text]);
+
   return (
     <div className={"wb-msg wb-msg-agent" + (msg.error ? " wb-msg-agent--error" : "")}>
-      <Mono persona={msg.agent} size="md" />
+      <Mono persona={msg.agent} size="md" thinking={!!msg.thinkingActive} />
       <div className="wb-msg-agent__body">
         <div className="wb-msg-agent__name" style={{ color: msg.agent.color }}>
           {msg.agent.role}
         </div>
-        {msg.thinking && (
-          <div className="wb-msg-agent__reasoning">{msg.thinking}</div>
+
+        {(hasReasoning || msg.thinkingActive) && (
+          <div className={"wb-reason" + (msg.thinkingActive ? " is-active" : "")}>
+            <button className="wb-reason__head" onClick={() => setOpen((o) => !o)} type="button">
+              {msg.thinkingActive ? (
+                <span className="wb-reason__live">
+                  <span className="wb-reason__spin" aria-hidden="true"></span>
+                  {msg.status || "Pensando…"}
+                </span>
+              ) : (
+                <span className="wb-reason__title">Raciocínio</span>
+              )}
+              {hasReasoning && (
+                <span className={"wb-reason__chev" + (open ? " is-open" : "")} aria-hidden="true">▸</span>
+              )}
+            </button>
+            {hasReasoning && open && <div className="wb-reason__body">{msg.thinking}</div>}
+          </div>
         )}
-        <div className="wb-msg-agent__text">
-          {msg.text}
-          {msg.streaming && <span className="wb-caret-blink" aria-hidden="true">▋</span>}
-        </div>
+
+        {msg.text && (
+          <div className="wb-msg-agent__text">
+            {msg.text}
+            {msg.streaming && <span className="wb-caret-blink" aria-hidden="true">▋</span>}
+          </div>
+        )}
+        {!msg.text && msg.streaming && !msg.thinkingActive && (
+          <div className="wb-msg-agent__pending">{msg.status || "…"}</div>
+        )}
+
         {cache && <pre className="wb-msg-agent__meta">{cache}</pre>}
       </div>
     </div>
@@ -611,7 +642,7 @@ function Query({ persona, joinedPersonas = [], thinkingIds = [], time, messages,
           Docks to a slim top bar once the conversation starts. */}
       <div className={"wb-active" + (hasMessages ? " wb-active--docked" : "")}>
         <div className={"wb-active__item" + (thinkingIds.includes(persona.id) ? " is-thinking" : "")}>
-          <Mono persona={persona} size="lg" />
+          <Mono persona={persona} size="lg" thinking={thinkingIds.includes(persona.id)} />
           <div className="wb-active__body">
             <div className="wb-active__label">
               {thinkingIds.includes(persona.id) ? (
@@ -638,7 +669,7 @@ function Query({ persona, joinedPersonas = [], thinkingIds = [], time, messages,
                 }
                 title={compact ? `${p.role} · ${thinking ? "Pensando" : "Entrou no chat"}` : undefined}
               >
-                <Mono persona={p} size="lg" />
+                <Mono persona={p} size="lg" thinking={thinking} />
                 {!compact && (
                   <div className="wb-active__body">
                     <div className="wb-active__label">

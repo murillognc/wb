@@ -154,69 +154,79 @@ function AppV2() {
     enabledAgents.find((p) => p.id === selectedId) || enabledAgents[0] || PERSONAS_V2[0];
 
   // === Send message handler ===
-  // The primary agent answers. If it's an orchestrator, the backend may consult
-  // specialists via the Agent SDK and emits real "join"/"settled" events — those
-  // drive who appears in the chat and who is "thinking".
+  // Each contributing agent (the primary, plus any specialists an orchestrator
+  // consults via the Agent SDK) streams its own bubble: reasoning live, then the
+  // answer. agent_begin/agent_done drive who is "thinking" (animated icon).
   const handleSend = useCallback((text) => {
     const stamp = Date.now();
     const all = enabledRef.current;
-    const primaryAtSend = all.find((p) => p.id === selectedId) || all[0];
-    if (!primaryAtSend) return;
+    const primary = all.find((p) => p.id === selectedId) || all[0];
+    if (!primary) return;
+    const agentById = (id) => all.find((a) => a.id === id) || primary;
+    const bubbleId = (id) => `r-${stamp}-${id}`;
+    const accText = {};
+    const accThink = {};
 
-    // 1. User message
+    // User message + primary starts "thinking"
     setMessages((prev) => [...prev, { id: `u-${stamp}`, type: "user", text }]);
+    setThinkingIds((prev) => Array.from(new Set([...prev, primary.id])));
 
-    // 2. Primary starts thinking (until its first token, or synthesis, lands)
-    setThinkingIds((prev) => Array.from(new Set([...prev, primaryAtSend.id])));
+    const patchBubble = (id, patch) =>
+      setMessages((prev) => prev.map((m) => (m.id === bubbleId(id) ? { ...m, ...patch } : m)));
 
-    // 3. Stream the reply.
-    const replyId = `r-${stamp}`;
-    let started = false;
-    let acc = "";
-    let reasoning = "";
-    const stopPrimaryThinking = () =>
-      setThinkingIds((prev) => prev.filter((id) => id !== primaryAtSend.id));
-    const updateReply = (patch) =>
-      setMessages((prev) => prev.map((m) => (m.id === replyId ? { ...m, ...patch } : m)));
-    const ensureReply = () => {
-      if (started) return;
-      started = true;
-      stopPrimaryThinking();
-      setMessages((prev) => [
-        ...prev,
-        { id: replyId, type: "reply", agent: primaryAtSend, text: "", streaming: true },
-      ]);
-    };
-
-    // Replay the visible thread (user + agent turns) so the agent has context.
     const history = messagesRef.current
       .filter((m) => (m.type === "user" || m.type === "reply") && !m.error && m.text)
       .map((m) => ({ role: m.type === "user" ? "user" : "assistant", text: m.text }));
 
     WBApi.streamChat(
-      { personaId: primaryAtSend.id, message: text, history },
+      { personaId: primary.id, message: text, history },
       {
-        onText: (chunk) => { ensureReply(); acc += chunk; updateReply({ text: acc }); },
-        onThinking: (chunk) => { ensureReply(); reasoning += chunk; updateReply({ thinking: reasoning }); },
-        // Real "entrou no chat": a specialist was actually invoked via the SDK.
-        onJoin: (agentId) => {
-          setJoinedAgents((prev) => (prev.includes(agentId) ? prev : [...prev, agentId]));
+        onAgentBegin: (agentId) => {
+          const ag = agentById(agentId);
+          if (agentId !== primary.id) {
+            setJoinedAgents((prev) => (prev.includes(agentId) ? prev : [...prev, agentId]));
+          }
           setThinkingIds((prev) => Array.from(new Set([...prev, agentId])));
+          accText[agentId] = "";
+          accThink[agentId] = "";
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: bubbleId(agentId), type: "reply", agent: ag,
+              text: "", thinking: "", status: "Pensando…",
+              streaming: true, thinkingActive: true,
+            },
+          ]);
         },
-        onSettled: (agentId) => {
+        onStatus: (agentId, txt) => { if (agentId) patchBubble(agentId, { status: txt }); },
+        onThinking: (agentId, chunk) => {
+          accThink[agentId] = (accThink[agentId] || "") + chunk;
+          patchBubble(agentId, { thinking: accThink[agentId] });
+        },
+        onText: (agentId, chunk) => {
+          accText[agentId] = (accText[agentId] || "") + chunk;
+          patchBubble(agentId, { text: accText[agentId], thinkingActive: false });
+        },
+        onMeta: (agentId, cacheInfo) => { if (cacheInfo) patchBubble(agentId, { cacheInfo }); },
+        onAgentDone: (agentId) => {
+          patchBubble(agentId, { streaming: false, thinkingActive: false, status: null });
           setThinkingIds((prev) => prev.filter((id) => id !== agentId));
         },
-        onMeta: ({ cacheInfo }) => { if (cacheInfo) updateReply({ cacheInfo }); },
-        onError: (errMsg) => {
-          ensureReply();
-          updateReply({ text: acc || errMsg, error: !acc, streaming: false });
-          stopPrimaryThinking();
+        onError: (errMsg, agentId) => {
+          if (agentId) {
+            patchBubble(agentId, {
+              text: accText[agentId] || errMsg, error: !accText[agentId],
+              streaming: false, thinkingActive: false, status: null,
+            });
+            setThinkingIds((prev) => prev.filter((id) => id !== agentId));
+          } else {
+            setMessages((prev) => [...prev, { id: `e-${stamp}`, type: "reply", agent: primary, text: errMsg, error: true }]);
+          }
           const cfg = configRef.current;
           if (cfg && !cfg.keySet) setSettingsOpen(true);
         },
         onDone: () => {
-          if (started) updateReply({ streaming: false });
-          else stopPrimaryThinking();
+          setThinkingIds((prev) => prev.filter((id) => id !== primary.id));
         },
       }
     );

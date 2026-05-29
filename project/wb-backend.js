@@ -56,26 +56,26 @@
 
   function dispatch(ev, h) {
     switch (ev.type) {
+      case "agent_begin":
+        if (h.onAgentBegin) h.onAgentBegin(ev.agentId, ev.role);
+        break;
+      case "agent_done":
+        if (h.onAgentDone) h.onAgentDone(ev.agentId);
+        break;
       case "status":
-        if (h.onStatus) h.onStatus(ev.text, !!ev.done);
+        if (h.onStatus) h.onStatus(ev.agentId, ev.text);
         break;
       case "thinking":
-        if (h.onThinking) h.onThinking(ev.text);
+        if (h.onThinking) h.onThinking(ev.agentId, ev.text);
         break;
       case "text":
-        if (h.onText) h.onText(ev.text);
-        break;
-      case "join":
-        if (h.onJoin) h.onJoin(ev.agentId, ev.role);
-        break;
-      case "settled":
-        if (h.onSettled) h.onSettled(ev.agentId);
+        if (h.onText) h.onText(ev.agentId, ev.text);
         break;
       case "meta":
-        if (h.onMeta) h.onMeta({ sessionId: ev.sessionId, cacheInfo: ev.cacheInfo });
+        if (h.onMeta) h.onMeta(ev.agentId, ev.cacheInfo);
         break;
       case "error":
-        if (h.onError) h.onError(ev.message);
+        if (h.onError) h.onError(ev.message, ev.agentId);
         break;
       default:
         break;

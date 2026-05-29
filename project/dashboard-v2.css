@@ -470,6 +470,28 @@ body.is-resizing * {
 }
 .wb-mono--md { width: 32px; height: 32px; border-radius: 6px; font-size: 12px; }
 .wb-mono--sm { width: 22px; height: 22px; border-radius: 5px; font-size: 10px; }
+.wb-mono__txt { position: relative; z-index: 1; }
+
+/* Spinning multi-colour gradient ring while the agent is thinking */
+.wb-mono.is-thinking { overflow: visible; }
+.wb-mono__ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: 11px;
+  padding: 2px;
+  background: conic-gradient(from 0deg,
+    #FA981A, #5E83B8, #4FA060, #9B59B6, #E0556E, #2BB3A3, #FA981A);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  animation: wb-spin 1.15s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+.wb-mono--md .wb-mono__ring { border-radius: 9px; }
+.wb-mono--sm .wb-mono__ring { border-radius: 8px; }
+@keyframes wb-spin { to { transform: rotate(360deg); } }
 .wb-mono::before {
   /* faint cross-hatch index lines */
   content: '';
@@ -1667,3 +1689,58 @@ body.is-resizing * {
   border-color: rgba(250, 152, 26, 0.4);
 }
 .wb-msg-agent--error .wb-msg-agent__text { color: var(--wb-accent); }
+
+/* ============================================================
+   LIVE REASONING (OpenWebUI-style collapsible "thinking")
+   ============================================================ */
+.wb-reason {
+  margin: 4px 0 10px;
+  border-left: 2px solid var(--wb-rule);
+  transition: border-color 200ms;
+}
+.wb-reason.is-active { border-left-color: var(--wb-accent); }
+.wb-reason__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 3px 0 3px 10px;
+  color: var(--wb-text-muted);
+  font-family: var(--grws-font-body);
+  font-size: 12px;
+  text-align: left;
+}
+.wb-reason__head:hover { color: var(--wb-text); }
+.wb-reason__live { display: inline-flex; align-items: center; gap: 8px; color: var(--wb-text); }
+.wb-reason__title { letter-spacing: 0.02em; }
+.wb-reason__spin {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--wb-border-strong);
+  border-top-color: var(--wb-accent);
+  animation: wb-spin 0.8s linear infinite;
+  display: inline-block;
+}
+.wb-reason__chev { margin-left: auto; transition: transform 160ms; opacity: 0.7; }
+.wb-reason__chev.is-open { transform: rotate(90deg); }
+.wb-reason__body {
+  padding: 6px 0 6px 10px;
+  font-family: var(--grws-font-body);
+  font-size: 12.5px;
+  font-style: italic;
+  color: var(--wb-text-muted);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.wb-msg-agent__pending {
+  color: var(--wb-text-subtle);
+  font-style: italic;
+  font-size: 12.5px;
+  padding-top: 2px;
+}

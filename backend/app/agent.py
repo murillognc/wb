@@ -67,6 +67,16 @@ _ROUTER_SYS = (
 )
 _MAX_CONSULTS = 3
 
+# Appended to every agent's system prompt: our agents are pure-text analysts
+# with no tools, so they must not pretend to query systems or invent data.
+_GUARDRAIL = (
+    "\n\n[Importante] Você não tem acesso a bancos de dados, APIs, internet ou "
+    "ferramentas externas. Responda apenas com base no que foi fornecido na "
+    "conversa. Quando faltar um dado, diga claramente o que falta e, se útil, "
+    "trabalhe com uma premissa explícita — nunca finja consultar sistemas, "
+    "acessar URLs ou inventar números."
+)
+
 # Assistant-level / result-level error codes worth retrying.
 _RETRYABLE_ERRORS = {"rate_limit", "server_error"}
 _RETRYABLE_HTTP = {429, 500, 502, 503, 504}
@@ -108,21 +118,22 @@ def _build_prompt(history, message: str) -> str:
 
 
 def _build_options(agent: Dict[str, Any], cfg: AppConfig) -> ClaudeAgentOptions:
-    display = "summarized" if cfg.display_thinking else "omitted"
-
-    # Per-agent thinking config (admin-editable); display stays a global valve.
+    # Reasoning is now surfaced live in the chat (collapsible), so we ask for
+    # summarized thinking whenever thinking is enabled for the agent.
     if agent.get("thinkingEnabled", True):
         thinking: Dict[str, Any] = {
             "type": "enabled",
             "budget_tokens": int(agent.get("thinkingBudget", cfg.THINKING_BUDGET_TOKENS)),
-            "display": display,
+            "display": "summarized",
         }
     else:
         thinking = {"type": "disabled"}
 
+    system_prompt = (agent.get("systemPrompt") or "") + _GUARDRAIL
+
     opts = ClaudeAgentOptions(
         model=agent.get("model") or cfg.MODEL_ID,
-        system_prompt=agent.get("systemPrompt") or "",
+        system_prompt=system_prompt,
         # Pure text consultative chat: no file/bash/web tools, no autonomy.
         # With no tools enabled there is nothing to request permission for, so
         # we leave permission_mode at its default — using "bypassPermissions"
@@ -199,18 +210,27 @@ async def _stream_agent(
     agent: Dict[str, Any],
     prompt: str,
     cfg: AppConfig,
+    *,
+    agent_id: str,
+    role: str,
+    capture: Optional[list] = None,
 ) -> AsyncGenerator[Dict[str, Any], None]:
-    """Stream a single agent's reply (status/text/thinking/meta/done/error)."""
+    """Stream ONE agent's contribution, tagged with its agentId.
 
+    Emits: agent_begin → (status|thinking|text|meta)* → agent_done. Reasoning
+    (thinking) streams live. If `capture` is given, the final answer text is
+    appended to it (used to feed the orchestrator's synthesis). Does NOT emit
+    the turn-level "done" — the caller does that once."""
+
+    yield {"type": "agent_begin", "agentId": agent_id, "role": role}
     last_error_msg: Optional[str] = None
 
     for attempt in range(cfg.MAX_RETRIES):
         options = _build_options(agent, cfg)
-
-        captured_session: Optional[str] = None
         captured_usage: Optional[Dict[str, Any]] = None
-        emitted_text = False          # any answer token reached the client?
-        streamed_delta = False        # did partial StreamEvents carry the text?
+        answer_parts: list[str] = []
+        emitted_text = False
+        streamed_delta = False
         in_thinking = False
         err_code: Optional[str] = None
         err_status: Optional[int] = None
@@ -219,7 +239,6 @@ async def _stream_agent(
         try:
             async for msg in query(prompt=prompt, options=options):
 
-                # -- partial token stream (raw Anthropic SSE events) ----------
                 if isinstance(msg, StreamEvent):
                     ev = msg.event or {}
                     etype = ev.get("type")
@@ -228,10 +247,10 @@ async def _stream_agent(
                         btype = block.get("type")
                         if btype == "thinking":
                             in_thinking = True
-                            yield {"type": "status", "text": "Raciocinando...", "done": False}
+                            yield {"type": "status", "agentId": agent_id, "text": "Raciocinando..."}
                         elif btype == "text":
                             in_thinking = False
-                            yield {"type": "status", "text": "Analisando dados...", "done": False}
+                            yield {"type": "status", "agentId": agent_id, "text": "Escrevendo resposta..."}
                     elif etype == "content_block_delta":
                         delta = ev.get("delta", {}) or {}
                         dtype = delta.get("type")
@@ -240,17 +259,14 @@ async def _stream_agent(
                             if txt:
                                 streamed_delta = True
                                 emitted_text = True
-                                yield {"type": "text", "text": txt}
-                        elif dtype == "thinking_delta" and cfg.display_thinking:
+                                answer_parts.append(txt)
+                                yield {"type": "text", "agentId": agent_id, "text": txt}
+                        elif dtype == "thinking_delta":
                             think = delta.get("thinking", "")
                             if think:
-                                yield {"type": "thinking", "text": think}
-                    elif etype == "content_block_stop" and in_thinking:
-                        in_thinking = False
-                        yield {"type": "status", "text": "Raciocinio concluido", "done": False}
+                                yield {"type": "thinking", "agentId": agent_id, "text": think}
                     continue
 
-                # -- assembled assistant message ------------------------------
                 if isinstance(msg, AssistantMessage):
                     if msg.error:
                         err_code = msg.error
@@ -258,45 +274,33 @@ async def _stream_agent(
                             retryable_failure = True
                             break
                         last_error_msg = _friendly_error(err_code, None)
-                        yield {"type": "error", "message": last_error_msg}
+                        yield {"type": "error", "agentId": agent_id, "message": last_error_msg}
+                        yield {"type": "agent_done", "agentId": agent_id}
                         return
-                    # Fallback: if partial streaming didn't carry the text,
-                    # emit the assembled blocks now so the answer never vanishes.
-                    if not streamed_delta:
+                    if not streamed_delta:  # fallback when partial streaming was off
                         for block in msg.content:
                             if isinstance(block, TextBlock) and block.text:
                                 emitted_text = True
-                                yield {"type": "text", "text": block.text}
-                            elif (
-                                isinstance(block, ThinkingBlock)
-                                and cfg.display_thinking
-                                and getattr(block, "thinking", "")
-                            ):
-                                yield {"type": "thinking", "text": block.thinking}
+                                answer_parts.append(block.text)
+                                yield {"type": "text", "agentId": agent_id, "text": block.text}
+                            elif isinstance(block, ThinkingBlock) and getattr(block, "thinking", ""):
+                                yield {"type": "thinking", "agentId": agent_id, "text": block.thinking}
                     continue
 
-                # -- session bootstrap ---------------------------------------
-                if isinstance(msg, SystemMessage):
-                    sid = (msg.data or {}).get("session_id")
-                    if sid:
-                        captured_session = sid
-                    continue
-
-                # -- final result --------------------------------------------
                 if isinstance(msg, ResultMessage):
                     captured_usage = msg.usage
-                    if msg.session_id:
-                        captured_session = msg.session_id
                     if msg.is_error:
                         err_status = msg.api_error_status
                         if _is_retryable(None, err_status) and not emitted_text:
                             retryable_failure = True
                             break
                         last_error_msg = _friendly_error(None, err_status)
-                        yield {"type": "error", "message": last_error_msg}
+                        yield {"type": "error", "agentId": agent_id, "message": last_error_msg}
+                        yield {"type": "agent_done", "agentId": agent_id}
                         return
                     log.info(
-                        "USAGE | in=%s out=%s cache_read=%s cache_create=%s | cost_usd=%s",
+                        "USAGE %s | in=%s out=%s cache_read=%s cache_create=%s | cost=%s",
+                        agent_id,
                         (captured_usage or {}).get("input_tokens"),
                         (captured_usage or {}).get("output_tokens"),
                         (captured_usage or {}).get("cache_read_input_tokens"),
@@ -307,46 +311,34 @@ async def _stream_agent(
 
         except asyncio.CancelledError:
             raise
-        except Exception as exc:  # noqa: BLE001 — surface SDK/CLI failures gracefully
-            # SDK/CLI startup failures (ProcessError, etc.) are config problems,
-            # not transient API hiccups — don't burn retries on them. Transient
-            # API errors arrive as AssistantMessage.error / ResultMessage.is_error
-            # above and are retried there.
-            log.exception("Agent SDK query failed")
-            yield {
-                "type": "error",
-                "message": "Falha ao executar o agente. Verifique a chave da API "
-                "e os logs do servidor.",
-            }
+        except Exception:  # noqa: BLE001 — surface SDK/CLI failures gracefully
+            log.exception("Agent SDK query failed for %s", agent_id)
+            yield {"type": "error", "agentId": agent_id,
+                   "message": "Falha ao executar o agente. Verifique a chave da API e os logs."}
+            yield {"type": "agent_done", "agentId": agent_id}
             return
 
         if retryable_failure and attempt < cfg.MAX_RETRIES - 1:
-            # Exponential backoff, capped so a long outage can't wedge a request.
             delay = min(cfg.BASE_RETRY_DELAY ** (attempt + 1), 30.0) + random.uniform(0, 1)
-            log.warning(
-                "Transient failure (code=%s status=%s). Retry %s/%s in %.1fs",
-                err_code, err_status, attempt + 1, cfg.MAX_RETRIES, delay,
-            )
-            yield {
-                "type": "status",
-                "text": f"Tentando novamente ({attempt + 1}/{cfg.MAX_RETRIES})...",
-                "done": False,
-            }
+            log.warning("Transient failure (%s/%s) for %s, retry in %.1fs",
+                        attempt + 1, cfg.MAX_RETRIES, agent_id, delay)
+            yield {"type": "status", "agentId": agent_id,
+                   "text": f"Tentando novamente ({attempt + 1}/{cfg.MAX_RETRIES})..."}
             await asyncio.sleep(delay)
             continue
 
-        # Success path (or non-retryable error already returned above).
+        # Success.
+        if capture is not None:
+            capture.append("".join(answer_parts).strip())
         cache_info = _cache_info(captured_usage) if cfg.show_cache_info else None
-        yield {"type": "status", "text": "Resposta concluida", "done": True}
-        yield {"type": "meta", "sessionId": captured_session, "cacheInfo": cache_info}
-        yield {"type": "done"}
+        if cache_info:
+            yield {"type": "meta", "agentId": agent_id, "cacheInfo": cache_info}
+        yield {"type": "agent_done", "agentId": agent_id}
         return
 
-    # Exhausted retries without ever succeeding.
-    yield {
-        "type": "error",
-        "message": last_error_msg or "Maximo de tentativas excedido.",
-    }
+    yield {"type": "error", "agentId": agent_id,
+           "message": last_error_msg or "Maximo de tentativas excedido."}
+    yield {"type": "agent_done", "agentId": agent_id}
 
 
 # ===================================================================
@@ -407,33 +399,36 @@ def _synthesis_prompt(prompt: str, results: list) -> str:
 async def _orchestrate(
     orch: Dict[str, Any], prompt: str, message: str, specialists: list, cfg: AppConfig
 ) -> AsyncGenerator[Dict[str, Any], None]:
-    yield {"type": "status", "text": "Selecionando especialistas...", "done": False}
+    yield {"type": "status", "text": "Selecionando especialistas..."}
     chosen = await _route(orch, message, specialists, cfg)
 
     if not chosen:
-        # Orchestrator handles it alone.
-        async for ev in _stream_agent(orch, prompt, cfg):
+        async for ev in _stream_agent(orch, prompt, cfg, agent_id=orch["id"], role=orch["role"]):
             yield ev
+        yield {"type": "done"}
         return
 
-    for sp in chosen:
-        yield {"type": "join", "agentId": sp["id"], "role": sp["role"]}
-    names = ", ".join(s["role"] for s in chosen)
-    yield {"type": "status", "text": f"Consultando {names}...", "done": False}
-
+    # Each chosen specialist streams its reasoning + answer live, in turn.
     consult_prompt = (
         prompt + "\n\n[Instrução] Responda de forma objetiva e focada na sua "
         "especialidade; suas notas serão consolidadas pelo orquestrador."
     )
-    texts = await asyncio.gather(*[_collect(sp, consult_prompt, cfg) for sp in chosen])
-    results = list(zip(chosen, texts))
-
+    results = []
     for sp in chosen:
-        yield {"type": "settled", "agentId": sp["id"]}
+        cap: list = []
+        async for ev in _stream_agent(
+            sp, consult_prompt, cfg, agent_id=sp["id"], role=sp["role"], capture=cap
+        ):
+            yield ev
+        results.append((sp, cap[0] if cap else ""))
 
-    yield {"type": "status", "text": "Sintetizando o briefing...", "done": False}
-    async for ev in _stream_agent(orch, _synthesis_prompt(prompt, results), cfg):
+    # Orchestrator synthesises the specialists' contributions.
+    yield {"type": "status", "text": "Sintetizando o briefing..."}
+    async for ev in _stream_agent(
+        orch, _synthesis_prompt(prompt, results), cfg, agent_id=orch["id"], role=orch["role"]
+    ):
         yield ev
+    yield {"type": "done"}
 
 
 async def stream_reply(
@@ -453,7 +448,7 @@ async def stream_reply(
         return
 
     prompt = _build_prompt(history, message)
-    yield {"type": "status", "text": "Enviando para a Anthropic...", "done": False}
+    yield {"type": "status", "text": "Enviando para a Anthropic..."}
 
     specialists = [
         a for a in agent_store.list(include_disabled=False)
@@ -464,5 +459,6 @@ async def stream_reply(
         async for ev in _orchestrate(agent, prompt, message, specialists, cfg):
             yield ev
     else:
-        async for ev in _stream_agent(agent, prompt, cfg):
+        async for ev in _stream_agent(agent, prompt, cfg, agent_id=agent["id"], role=agent["role"]):
             yield ev
+        yield {"type": "done"}
