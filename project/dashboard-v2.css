@@ -746,10 +746,10 @@ body.is-resizing * {
 /* Centered conversation column */
 .wb-chat__inner {
   width: 100%;
-  max-width: 760px;
+  max-width: var(--wb-thread-w);
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 22px;
 }
 .wb-chat::-webkit-scrollbar { width: 6px; }
 .wb-chat::-webkit-scrollbar-thumb {
@@ -776,9 +776,9 @@ body.is-resizing * {
   border: 1px solid var(--wb-border);
   border-radius: 18px;
   font-family: var(--grws-font-body);
-  font-size: 14.5px;
+  font-size: 15px;
   color: var(--wb-text-strong);
-  line-height: 1.55;
+  line-height: 1.6;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
@@ -808,19 +808,21 @@ body.is-resizing * {
 .wb-msg-agent__name {
   font-family: var(--grws-font-display);
   font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  margin-bottom: 5px;
-  line-height: 1;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  margin-bottom: 7px;
+  line-height: 1.1;
 }
 .wb-msg-agent__text {
   font-family: var(--grws-font-body);
-  font-size: 14.5px;
+  font-size: 15px;
   color: var(--wb-text);
-  line-height: 1.6;
+  line-height: 1.7;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
+/* Mild emphasis for the model's own line breaks / lists reads better with a
+   touch more spacing between turns (gap handled on .wb-chat__inner). */
 
 /* Join notification — small centered chip */
 .wb-msg-join {
@@ -855,6 +857,7 @@ body.is-resizing * {
    QUERY panel (right)
    ============================================================ */
 .wb-query {
+  --wb-thread-w: 740px;           /* invisible chat column width */
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1052,11 +1055,11 @@ body.is-resizing * {
 }
 .wb-composer {
   width: 100%;
-  max-width: 720px;
+  max-width: calc(var(--wb-thread-w) + 48px);  /* slightly wider than the thread column */
   background: var(--wb-panel-elev);
   border: 1px solid var(--wb-border);
-  border-radius: 16px;
-  padding: 14px 16px 12px;
+  border-radius: 20px;
+  padding: 16px 18px 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1077,9 +1080,9 @@ body.is-resizing * {
   resize: none;
   color: var(--wb-text);
   font-family: var(--grws-font-body);
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.6;
   padding: 4px 2px;
   min-height: 52px;
   max-height: 180px;
