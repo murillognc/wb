@@ -1991,6 +1991,14 @@ body.is-resizing * {
   font-weight: 400;
   margin: 0 2px;
 }
+/* Joint bubble: stack the overlapping avatars ON TOP of the names + text
+   (column layout) so a row of 3-4 specialists never pushes the text sideways
+   or breaks the layout. */
+.wb-msg-agent--joint {
+  flex-direction: column;
+  gap: 8px;
+}
+.wb-msg-agent--joint .wb-msg-agent__body { width: 100%; }
 
 /* ============================================================
    MARKDOWN — rendered inside agent replies
