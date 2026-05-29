@@ -6,7 +6,8 @@ React + Babel transpile in the browser) and exposes a small JSON/SSE API that
 drives the Claude Agent SDK.
 
 Routes:
-    GET  /                  -> the dashboard HTML
+    GET  /                  -> the homepage (landing — never straight to chat)
+    GET  /chat              -> the dashboard (chat) HTML
     GET  /api/health        -> liveness
     GET  /api/config        -> public config (never the key)
     POST /api/config        -> set API key / debug valves (persists to .env)
@@ -42,7 +43,8 @@ log = logging.getLogger("waterbrain")
 
 # project/ holds the prototype (this file is backend/app/main.py).
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent / "project"
-INDEX_HTML = PROJECT_DIR / "WaterBrain Dashboard.html"
+HOMEPAGE_HTML = PROJECT_DIR / "WaterBrain Homepage.html"
+DASHBOARD_HTML = PROJECT_DIR / "WaterBrain Dashboard.html"
 
 app = FastAPI(title="WaterBrain", version="1.0.0")
 
@@ -135,7 +137,15 @@ async def chat(req: ChatRequest):
 # ------------------------------------------------------------ static / index
 @app.get("/")
 async def index() -> FileResponse:
-    return FileResponse(INDEX_HTML)
+    # Hitting the app always lands on the homepage, never straight into chat.
+    return FileResponse(HOMEPAGE_HTML)
+
+
+@app.get("/chat")
+@app.get("/dashboard")
+async def dashboard() -> FileResponse:
+    # The conversational dashboard lives here (the homepage links to it).
+    return FileResponse(DASHBOARD_HTML)
 
 
 # Everything else (css, jsx, fonts, assets, the homepage) is served as-is.
