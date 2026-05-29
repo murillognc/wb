@@ -602,6 +602,9 @@ function renderMarkdown(src) {
     const line = lines[i];
     if (!line.trim()) { i++; continue; }
 
+    // horizontal rule / thematic break (---, ***, ___) — drop it entirely
+    if (/^\s*([-*_])\1{2,}\s*$/.test(line)) { i++; continue; }
+
     if (/^\s*```/.test(line)) {
       i++;
       const code = [];
