@@ -738,16 +738,29 @@ function Query({ persona, joinedPersonas = [], thinkingIds = [], time, messages,
   const [draft, setDraft] = useState("");
   const taRef = useRef(null);
   const chatRef = useRef(null);
+  // "Stick to bottom" while answering — turns off if the user scrolls up, back
+  // on when they return to the bottom.
+  const stickRef = useRef(true);
+
+  const onChatScroll = () => {
+    const el = chatRef.current;
+    if (!el) return;
+    stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
 
   // Reset draft on persona change
   useEffect(() => { setDraft(""); }, [persona.id]);
 
-  // Auto-scroll on new messages
+  // Follow the conversation as it streams — but only while pinned to the
+  // bottom. Sending a new message always re-pins. Runs on every chunk because
+  // each patch produces a new `messages` array.
   useEffect(() => {
-    if (chatRef.current) {
-      chatRef.current.scrollTop = chatRef.current.scrollHeight;
-    }
-  }, [messages.length]);
+    const el = chatRef.current;
+    if (!el) return;
+    const last = messages[messages.length - 1];
+    if (last && last.type === "user") stickRef.current = true;
+    if (stickRef.current) el.scrollTop = el.scrollHeight;
+  }, [messages]);
 
   const prompts = persona.quickPrompts || QUICK_PROMPTS[persona.id] || [];
   const hasMessages = messages.length > 0;
@@ -856,7 +869,7 @@ function Query({ persona, joinedPersonas = [], thinkingIds = [], time, messages,
       )}
 
       {/* Chat thread — centered column (Claude-style) */}
-      <div className="wb-chat" ref={chatRef}>
+      <div className="wb-chat" ref={chatRef} onScroll={onChatScroll}>
         <div className="wb-chat__inner">
           {messages.map((m) => {
             if (m.type === "user") return <UserMessage key={m.id} msg={m} />;
