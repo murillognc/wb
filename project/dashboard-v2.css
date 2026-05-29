@@ -4,28 +4,28 @@
    ===================================================================== */
 
 :root {
-  /* === Surfaces (darker, less saturated, near-black with blue undertone) === */
-  --wb-bg:           #0A0D13;
+  /* === Surfaces (neutral graphite — easier on the eyes than the old blue-black,
+     hierarchy preserved: bg < panel < panel-elev) === */
+  --wb-bg:           #16171A;
   --wb-bg-grad:
-    radial-gradient(ellipse 80% 45% at 50% -10%, rgba(11, 63, 168, 0.16) 0%, transparent 55%),
-    radial-gradient(circle at 12% 8%, rgba(17, 160, 211, 0.06) 0%, transparent 30%),
-    radial-gradient(ellipse at 30% -10%, #11151F 0%, #0A0D13 60%, #07090E 100%);
-  --wb-panel:        #0F131B;
-  --wb-panel-elev:   #141925;
+    radial-gradient(ellipse 90% 50% at 50% -12%, rgba(150, 156, 168, 0.05) 0%, transparent 60%),
+    linear-gradient(180deg, #191B1F 0%, #16171A 70%, #121316 100%);
+  --wb-panel:        #1D1F23;
+  --wb-panel-elev:   #24262B;
   --wb-row:          transparent;
-  --wb-row-hover:    rgba(255,255,255,0.025);
-  --wb-row-sel:      #181E2B;
+  --wb-row-hover:    rgba(255,255,255,0.04);
+  --wb-row-sel:      #2A2D34;
 
-  --wb-border:       #1B212D;
-  --wb-border-strong:#262E3D;
-  --wb-rule:         #141925;
+  --wb-border:       #2A2D33;
+  --wb-border-strong:#3A3E46;
+  --wb-rule:         #202227;
 
   /* === Text === */
-  --wb-text:         #E5E9F1;
-  --wb-text-strong:  #F4F6FA;
-  --wb-text-muted:   #8B94A5;
-  --wb-text-subtle:  #525B6C;
-  --wb-text-faint:   #363E4D;
+  --wb-text:         #E6E8EC;
+  --wb-text-strong:  #F4F5F8;
+  --wb-text-muted:   #9197A1;
+  --wb-text-subtle:  #5E636D;
+  --wb-text-faint:   #3C404A;
 
   /* === Accents === */
   --wb-accent:       #FA981A;            /* orange (executive + send CTA only) */
@@ -857,7 +857,7 @@ body.is-resizing * {
    QUERY panel (right)
    ============================================================ */
 .wb-query {
-  --wb-thread-w: 740px;           /* invisible chat column width */
+  --wb-thread-w: 800px;           /* invisible chat column width */
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1055,7 +1055,7 @@ body.is-resizing * {
 }
 .wb-composer {
   width: 100%;
-  max-width: calc(var(--wb-thread-w) + 48px);  /* slightly wider than the thread column */
+  max-width: var(--wb-thread-w);   /* aligned with the chat column (same edges) */
   background: var(--wb-panel-elev);
   border: 1px solid var(--wb-border);
   border-radius: 20px;
@@ -1749,8 +1749,8 @@ body.is-resizing * {
 .wb-msg-agent__meta {
   margin: 10px 0 0;
   padding: 8px 10px;
-  background: var(--wb-bg);
-  border: 1px solid var(--wb-rule);
+  background: var(--wb-panel);
+  border: 1px solid var(--wb-border);
   border-radius: 8px;
   font-family: var(--wb-font-mono);
   font-size: 10.5px;
