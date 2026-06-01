@@ -4,7 +4,7 @@
 // frosted-glass layer; foreground = a grid of agent cards (orchestrator featured)
 // each showing a short, fictitious summary of recent activity.
 
-const { useEffect: useEffectD, useRef: useRefD } = React;
+const { useEffect: useEffectD, useRef: useRefD, useState: useStateD } = React;
 
 // Fictitious "recent activity" per agent.
 const AGENT_ACTIVITY = {
@@ -208,6 +208,91 @@ function AgentOverviewCard({ agent, featured }) {
 }
 
 /* ------------------------------------------------------------------
+   Ask bar — ask about what the agents did/analysed. Feeds the agents'
+   recent activity as context to the orchestrator and shows the answer.
+   ------------------------------------------------------------------ */
+function DashboardAsk({ list, exec }) {
+  const [q, setQ] = useStateD("");
+  const [asked, setAsked] = useStateD("");
+  const [answer, setAnswer] = useStateD("");
+  const [asking, setAsking] = useStateD(false);
+
+  function ask() {
+    const text = q.trim();
+    if (!text || asking) return;
+    setAsked(text);
+    setAnswer("");
+    setAsking(true);
+    setQ("");
+    const ctx = list
+      .map((a) => {
+        const act = AGENT_ACTIVITY[a.id] || AGENT_ACTIVITY._default;
+        return `- ${a.role}: ${act.summary} Recentemente: ${act.items.join("; ")}. (${act.stat})`;
+      })
+      .join("\n");
+    const history = [
+      { role: "user", text: "Contexto — atividades recentes dos agentes na plataforma:\n" + ctx },
+      { role: "assistant", text: "Entendido. Tenho o panorama das atividades recentes de cada agente e posso responder sobre elas." },
+    ];
+    let acc = "";
+    window.WBApi.streamChat(
+      { personaId: (exec && exec.id) || "executivo", message: text, history },
+      {
+        onText: (bubbleId, chunk) => {
+          if (bubbleId === "final") { acc += chunk; setAnswer(acc); }
+        },
+        onError: (msg) => { if (!acc) setAnswer(msg); setAsking(false); },
+        onDone: () => setAsking(false),
+      }
+    );
+  }
+  function onKey(e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); }
+  }
+
+  return (
+    <div className="wb-dash-ask">
+      <div className="wb-dash-ask__bar">
+        <textarea
+          className="wb-dash-ask__input"
+          rows={1}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={onKey}
+          placeholder="Pergunte sobre o que os agentes analisaram e realizaram…"
+        />
+        <button
+          className={"wb-send" + (q.trim() && !asking ? " is-active" : "")}
+          disabled={!q.trim() || asking}
+          onClick={ask}
+          aria-label="Perguntar"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M7 11V3M3.5 6.5L7 3l3.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+
+      {(asked || asking || answer) && (
+        <div className="wb-dash-ask__answer">
+          {asked && <div className="wb-dash-ask__q">{asked}</div>}
+          {answer ? (
+            <div className="wb-dash-ask__a wb-md">
+              {window.renderMarkdown(answer)}
+              {asking && <span className="wb-caret-blink" aria-hidden="true">▋</span>}
+            </div>
+          ) : asking ? (
+            <div className="wb-dash-ask__status">
+              <span className="wb-reason__spin" aria-hidden="true"></span> Analisando as atividades…
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------
    Dashboard screen (full-screen overlay)
    ------------------------------------------------------------------ */
 function DashboardScreen({ agents, onClose }) {
@@ -236,6 +321,7 @@ function DashboardScreen({ agents, onClose }) {
         </header>
 
         <div className="wb-dash__scroll">
+          <DashboardAsk list={list} exec={exec} />
           <div className="wb-dash__grid">
             {exec && <AgentOverviewCard agent={exec} featured />}
             {others.map((a) => (

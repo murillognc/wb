@@ -739,7 +739,7 @@ function AgentReply({ msg }) {
         )}
 
         {msg.text && (
-          <div className="wb-msg-agent__text">
+          <div className="wb-msg-agent__text wb-md">
             {renderMarkdown(msg.text)}
             {msg.streaming && <span className="wb-caret-blink" aria-hidden="true">▋</span>}
           </div>
@@ -978,4 +978,5 @@ Object.assign(window, {
   Roster,
   Query,
   FooterV2,
+  renderMarkdown,
 });
