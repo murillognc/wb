@@ -208,94 +208,53 @@ function AgentOverviewCard({ agent, featured }) {
 }
 
 /* ------------------------------------------------------------------
-   Ask bar — ask about what the agents did/analysed. Feeds the agents'
-   recent activity as context to the orchestrator and shows the answer.
+   Ask composer — just the input + send button (state lives upstream).
    ------------------------------------------------------------------ */
-function DashboardAsk({ list, exec }) {
+function AskComposer({ onSend, asking }) {
   const [q, setQ] = useStateD("");
-  const [asked, setAsked] = useStateD("");
-  const [answer, setAnswer] = useStateD("");
-  const [asking, setAsking] = useStateD(false);
-
-  function ask() {
+  function submit() {
     const text = q.trim();
     if (!text || asking) return;
-    setAsked(text);
-    setAnswer("");
-    setAsking(true);
+    onSend(text);
     setQ("");
-    const ctx = list
-      .map((a) => {
-        const act = AGENT_ACTIVITY[a.id] || AGENT_ACTIVITY._default;
-        return `- ${a.role}: ${act.summary} Recentemente: ${act.items.join("; ")}. (${act.stat})`;
-      })
-      .join("\n");
-    const history = [
-      { role: "user", text: "Contexto — atividades recentes dos agentes na plataforma:\n" + ctx },
-      { role: "assistant", text: "Entendido. Tenho o panorama das atividades recentes de cada agente e posso responder sobre elas." },
-    ];
-    let acc = "";
-    window.WBApi.streamChat(
-      { personaId: (exec && exec.id) || "executivo", message: text, history },
-      {
-        onText: (bubbleId, chunk) => {
-          if (bubbleId === "final") { acc += chunk; setAnswer(acc); }
-        },
-        onError: (msg) => { if (!acc) setAnswer(msg); setAsking(false); },
-        onDone: () => setAsking(false),
-      }
-    );
   }
   function onKey(e) {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
   }
-
   return (
-    <div className="wb-dash-ask">
-      <div className="wb-dash-ask__bar">
-        <textarea
-          className="wb-dash-ask__input"
-          rows={1}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={onKey}
-          placeholder="Pergunte sobre o que os agentes analisaram e realizaram…"
-        />
-        <button
-          className={"wb-send" + (q.trim() && !asking ? " is-active" : "")}
-          disabled={!q.trim() || asking}
-          onClick={ask}
-          aria-label="Perguntar"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M7 11V3M3.5 6.5L7 3l3.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-      </div>
-
-      {(asked || asking || answer) && (
-        <div className="wb-dash-ask__answer">
-          {asked && <div className="wb-dash-ask__q">{asked}</div>}
-          {answer ? (
-            <div className="wb-dash-ask__a wb-md">
-              {window.renderMarkdown(answer)}
-              {asking && <span className="wb-caret-blink" aria-hidden="true">▋</span>}
-            </div>
-          ) : asking ? (
-            <div className="wb-dash-ask__status">
-              <span className="wb-reason__spin" aria-hidden="true"></span> Analisando as atividades…
-            </div>
-          ) : null}
-        </div>
-      )}
+    <div className="wb-dash-ask__bar">
+      <textarea
+        className="wb-dash-ask__input"
+        rows={1}
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        onKeyDown={onKey}
+        placeholder="Pergunte sobre o que os agentes analisaram e realizaram…"
+      />
+      <button
+        className={"wb-send" + (q.trim() && !asking ? " is-active" : "")}
+        disabled={!q.trim() || asking}
+        onClick={submit}
+        aria-label="Perguntar"
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M7 11V3M3.5 6.5L7 3l3.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
     </div>
   );
 }
 
 /* ------------------------------------------------------------------
-   Dashboard screen (full-screen overlay)
+   Dashboard screen (full-screen overlay). Before the first question the
+   agents fill the area; once you ask, they shift left and a chat panel
+   opens on the right.
    ------------------------------------------------------------------ */
 function DashboardScreen({ agents, onClose }) {
+  const [messages, setMessages] = useStateD([]); // {role:'user'|'agent', text, streaming, error}
+  const [asking, setAsking] = useStateD(false);
+  const threadRef = useRefD(null);
+
   useEffectD(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
@@ -305,6 +264,55 @@ function DashboardScreen({ agents, onClose }) {
   const list = (agents && agents.length ? agents : PERSONAS_V2).filter((a) => a.enabled !== false);
   const exec = list.find((a) => a.isExecutive) || list[0];
   const others = list.filter((a) => a !== exec);
+  const hasChat = messages.length > 0;
+
+  useEffectD(() => {
+    const el = threadRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages]);
+
+  function send(text) {
+    if (asking) return;
+    const convo = messages
+      .filter((m) => m.text && !m.error)
+      .map((m) => ({ role: m.role === "user" ? "user" : "assistant", text: m.text }));
+    setMessages((prev) => [...prev, { role: "user", text }, { role: "agent", text: "", streaming: true }]);
+    setAsking(true);
+
+    const ctx = list
+      .map((a) => {
+        const act = AGENT_ACTIVITY[a.id] || AGENT_ACTIVITY._default;
+        return `- ${a.role}: ${act.summary} Recentemente: ${act.items.join("; ")}. (${act.stat})`;
+      })
+      .join("\n");
+    const history = [
+      { role: "user", text: "Contexto — atividades recentes dos agentes na plataforma:\n" + ctx },
+      { role: "assistant", text: "Entendido. Tenho o panorama das atividades recentes de cada agente e posso responder sobre elas." },
+      ...convo,
+    ];
+
+    let acc = "";
+    const patchLast = (patch) =>
+      setMessages((prev) => {
+        const c = prev.slice();
+        c[c.length - 1] = { ...c[c.length - 1], ...patch };
+        return c;
+      });
+
+    window.WBApi.streamChat(
+      { personaId: (exec && exec.id) || "executivo", message: text, history },
+      {
+        onText: (bubbleId, chunk) => {
+          if (bubbleId === "final") { acc += chunk; patchLast({ text: acc }); }
+        },
+        onError: (msg) => {
+          if (!acc) patchLast({ text: msg, error: true, streaming: false });
+          setAsking(false);
+        },
+        onDone: () => { patchLast({ streaming: false }); setAsking(false); },
+      }
+    );
+  }
 
   return (
     <div className="wb-dash">
@@ -320,15 +328,51 @@ function DashboardScreen({ agents, onClose }) {
           <div className="wb-dash__bar-right"></div>
         </header>
 
-        <div className="wb-dash__scroll">
-          <DashboardAsk list={list} exec={exec} />
-          <div className="wb-dash__grid">
-            {exec && <AgentOverviewCard agent={exec} featured />}
-            {others.map((a) => (
-              <AgentOverviewCard key={a.id} agent={a} />
-            ))}
-          </div>
+        <div className={"wb-dash__main" + (hasChat ? " is-split" : "")}>
+          <section className="wb-dash__agents">
+            <div className="wb-dash__grid">
+              {exec && <AgentOverviewCard agent={exec} featured />}
+              {others.map((a) => (
+                <AgentOverviewCard key={a.id} agent={a} />
+              ))}
+            </div>
+          </section>
+
+          {hasChat && (
+            <section className="wb-dash__chat">
+              <div className="wb-dash__chat-head">Conversa sobre os agentes</div>
+              <div className="wb-dash__chat-thread" ref={threadRef}>
+                {messages.map((m, i) =>
+                  m.role === "user" ? (
+                    <div key={i} className="wb-dash-msg wb-dash-msg--user">{m.text}</div>
+                  ) : (
+                    <div key={i} className={"wb-dash-msg wb-dash-msg--agent" + (m.error ? " is-error" : "")}>
+                      {m.text ? (
+                        <div className="wb-dash-msg__a wb-md">
+                          {window.renderMarkdown(m.text)}
+                          {m.streaming && <span className="wb-caret-blink" aria-hidden="true">▋</span>}
+                        </div>
+                      ) : (
+                        <div className="wb-dash-ask__status">
+                          <span className="wb-reason__spin" aria-hidden="true"></span> Analisando as atividades…
+                        </div>
+                      )}
+                    </div>
+                  )
+                )}
+              </div>
+              <div className="wb-dash__chat-composer">
+                <AskComposer onSend={send} asking={asking} />
+              </div>
+            </section>
+          )}
         </div>
+
+        {!hasChat && (
+          <div className="wb-dash__ask-dock">
+            <AskComposer onSend={send} asking={asking} />
+          </div>
+        )}
       </div>
     </div>
   );
