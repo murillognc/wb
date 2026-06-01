@@ -2186,21 +2186,34 @@ body.is-resizing * {
 @media (max-width: 1080px) { .wb-dash__grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 680px)  { .wb-dash__grid { grid-template-columns: 1fr; } }
 
-/* Split mode: agents shrink left (auto-fitting cards), chat docks right */
+/* Split mode: agents on the left (2 columns, orchestrator as a top banner),
+   chat as a proportional panel on the right. */
+.wb-dash__main.is-split .wb-dash__agents {
+  flex: 1.6;
+  min-width: 0;
+  padding: 12px 14px 28px 28px;
+}
 .wb-dash__main.is-split .wb-dash__grid {
   max-width: none;
   margin: 0;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  align-content: start;
 }
-.wb-dash__main.is-split .wb-dash-card--exec { grid-row: auto; grid-column: auto; }
+/* Orchestrator stays the highlight — full-width banner on top */
+.wb-dash__main.is-split .wb-dash-card--exec {
+  grid-row: auto;
+  grid-column: 1 / -1;
+}
 
 .wb-dash__chat {
-  width: 420px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 360px;
+  max-width: 620px;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  margin: 6px 16px 16px 0;
+  margin: 12px 28px 24px 6px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -2209,7 +2222,13 @@ body.is-resizing * {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   overflow: hidden;
 }
-@media (max-width: 900px) { .wb-dash__chat { width: 340px; } }
+/* Narrow viewports: stack agents over a shorter chat */
+@media (max-width: 1000px) {
+  .wb-dash__main.is-split { flex-direction: column; }
+  .wb-dash__main.is-split .wb-dash__grid { grid-template-columns: 1fr; }
+  .wb-dash__main.is-split .wb-dash-card--exec { grid-column: auto; }
+  .wb-dash__chat { max-width: none; min-width: 0; margin: 0 28px 20px; max-height: 46vh; }
+}
 .wb-dash__chat-head {
   flex-shrink: 0;
   padding: 14px 16px;
