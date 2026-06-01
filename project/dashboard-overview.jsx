@@ -60,6 +60,16 @@ const AGENT_ACTIVITY = {
   },
 };
 
+// Fictitious "top users" of the last week (most active first).
+const TOP_USERS = [
+  { name: "Murillo Gonçalves", area: "Diretoria", initials: "Mg", color: "#FA981A", queries: 48 },
+  { name: "Ana Beatriz Costa", area: "Financeiro", initials: "Ab", color: "#5E83B8", queries: 37 },
+  { name: "Carlos Mendes", area: "Comercial", initials: "Cm", color: "#4FA060", queries: 31 },
+  { name: "Rafael Lima", area: "Operações", initials: "Rl", color: "#B97A3A", queries: 24 },
+  { name: "Juliana Souza", area: "Qualidade", initials: "Js", color: "#7E8AA0", queries: 19 },
+  { name: "Pedro Almeida", area: "Logística", initials: "Pa", color: "#6C7BD1", queries: 14 },
+];
+
 /* ------------------------------------------------------------------
    Neural-net background — homepage effect, neutralised to greys.
    ------------------------------------------------------------------ */
@@ -208,6 +218,27 @@ function AgentOverviewCard({ agent, featured }) {
 }
 
 /* ------------------------------------------------------------------
+   Top users panel (fictitious)
+   ------------------------------------------------------------------ */
+function TopUsersPanel({ compact }) {
+  return (
+    <ol className={"wb-topusers" + (compact ? " is-compact" : "")}>
+      {TOP_USERS.map((u, i) => (
+        <li key={i} className="wb-topusers__item">
+          <span className="wb-topusers__rank">{i + 1}</span>
+          <span className="wb-mono wb-mono--sm" style={{ "--mono-accent": u.color }}>{u.initials}</span>
+          <span className="wb-topusers__id">
+            <span className="wb-topusers__name">{u.name}</span>
+            <span className="wb-topusers__area">{u.area}</span>
+          </span>
+          <span className="wb-topusers__count">{u.queries}<small>consultas</small></span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/* ------------------------------------------------------------------
    Ask composer — just the input + send button (state lives upstream).
    ------------------------------------------------------------------ */
 function AskComposer({ onSend, asking }) {
@@ -324,21 +355,36 @@ function DashboardScreen({ agents, onClose }) {
           <button className="wb-admin__back" onClick={onClose}>
             <span aria-hidden="true">←</span> Voltar ao chat
           </button>
-          <h1 className="wb-dash__heading">Visão geral dos agentes</h1>
+          <h1 className="wb-dash__heading">Dashboard</h1>
           <div className="wb-dash__bar-right"></div>
         </header>
 
         <div className={"wb-dash__main" + (hasChat ? " is-split" : "")}>
           <section className="wb-dash__agents">
+            {hasChat ? (
+              <div className="wb-dash__top-row">
+                <div className="wb-dash__top-exec">
+                  {exec && <AgentOverviewCard agent={exec} featured />}
+                </div>
+                <div className="wb-dash__top-users">
+                  <div className="wb-dash__col-title">Top usuários da semana</div>
+                  <TopUsersPanel compact />
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="wb-dash__col-title">Visão geral dos agentes</div>
+                {exec && <AgentOverviewCard agent={exec} featured />}
+              </>
+            )}
             <div className="wb-dash__grid">
-              {exec && <AgentOverviewCard agent={exec} featured />}
               {others.map((a) => (
                 <AgentOverviewCard key={a.id} agent={a} />
               ))}
             </div>
           </section>
 
-          {hasChat && (
+          {hasChat ? (
             <section className="wb-dash__chat">
               <div className="wb-dash__chat-head">Conversa sobre os agentes</div>
               <div className="wb-dash__chat-thread" ref={threadRef}>
@@ -365,6 +411,11 @@ function DashboardScreen({ agents, onClose }) {
                 <AskComposer onSend={send} asking={asking} />
               </div>
             </section>
+          ) : (
+            <aside className="wb-dash__side">
+              <div className="wb-dash__col-title">Top usuários da semana</div>
+              <TopUsersPanel />
+            </aside>
           )}
         </div>
 

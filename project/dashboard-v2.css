@@ -2163,7 +2163,9 @@ body.is-resizing * {
   color: var(--wb-text-strong);
   margin: 0;
 }
-/* Main area — agents only, or agents (left) + chat (right) once asking */
+/* Main area — agents (left) + a right column that is Top Users (no chat yet)
+   or the Chat panel (once asking). The orchestrator card is rendered above the
+   grid, so the grid holds only the four specialists. */
 .wb-dash__main {
   flex: 1;
   min-height: 0;
@@ -2171,40 +2173,48 @@ body.is-resizing * {
   overflow: hidden;
 }
 .wb-dash__agents {
-  flex: 1;
+  flex: 1.7;
   min-width: 0;
   overflow-y: auto;
-  padding: 8px 28px 32px;
+  padding: 12px 16px 28px 28px;
+}
+.wb-dash__col-title {
+  font-family: var(--grws-font-display);
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--wb-text-muted);
+  margin: 2px 2px 12px;
 }
 .wb-dash__grid {
-  max-width: 1180px;
-  margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
-}
-@media (max-width: 1080px) { .wb-dash__grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 680px)  { .wb-dash__grid { grid-template-columns: 1fr; } }
-
-/* Split mode: agents on the left (2 columns, orchestrator as a top banner),
-   chat as a proportional panel on the right. */
-.wb-dash__main.is-split .wb-dash__agents {
-  flex: 1.6;
-  min-width: 0;
-  padding: 12px 14px 28px 28px;
-}
-.wb-dash__main.is-split .wb-dash__grid {
-  max-width: none;
-  margin: 0;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   align-content: start;
 }
-/* Orchestrator stays the highlight — full-width banner on top */
-.wb-dash__main.is-split .wb-dash-card--exec {
-  grid-row: auto;
-  grid-column: 1 / -1;
+@media (max-width: 760px) { .wb-dash__grid { grid-template-columns: 1fr; } }
+
+/* Right column (no chat): Top Users */
+.wb-dash__side {
+  flex: 1;
+  min-width: 280px;
+  max-width: 380px;
+  overflow-y: auto;
+  padding: 12px 28px 28px 14px;
 }
+
+/* With chat: WaterBrain shrinks and shares the top row with Top Users */
+.wb-dash__top-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  align-items: stretch;
+}
+.wb-dash__top-exec { flex: 1.5; min-width: 0; }
+.wb-dash__top-exec .wb-dash-card { height: 100%; }
+.wb-dash__top-users { flex: 1; min-width: 0; }
+.wb-dash__main.is-split .wb-dash__agents { flex: 1.6; padding: 12px 14px 28px 28px; }
 
 .wb-dash__chat {
   flex: 1;
@@ -2226,7 +2236,7 @@ body.is-resizing * {
 @media (max-width: 1000px) {
   .wb-dash__main.is-split { flex-direction: column; }
   .wb-dash__main.is-split .wb-dash__grid { grid-template-columns: 1fr; }
-  .wb-dash__main.is-split .wb-dash-card--exec { grid-column: auto; }
+  .wb-dash__top-row { flex-direction: column; }
   .wb-dash__chat { max-width: none; min-width: 0; margin: 0 28px 20px; max-height: 46vh; }
 }
 .wb-dash__chat-head {
@@ -2304,14 +2314,14 @@ body.is-resizing * {
 }
 .wb-dash-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.2); }
 /* Orchestrator featured — spans two rows on the left */
+/* Orchestrator card — rendered above the specialist grid (banner when no
+   chat, shared top-row when chatting). Just the accent tint here. */
 .wb-dash-card--exec {
-  grid-row: span 2;
   background: rgba(250, 152, 26, 0.07);
   border-color: rgba(250, 152, 26, 0.28);
+  margin-bottom: 16px;
 }
-@media (max-width: 1080px) {
-  .wb-dash-card--exec { grid-row: auto; grid-column: 1 / -1; }
-}
+.wb-dash__top-exec .wb-dash-card--exec { margin-bottom: 0; }
 
 .wb-dash-card__head {
   display: flex;
@@ -2464,4 +2474,84 @@ body.is-resizing * {
   font-size: 13.5px;
   font-style: italic;
   color: var(--wb-text-muted);
+}
+
+/* ============================================================
+   TOP USERS panel
+   ============================================================ */
+.wb-topusers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wb-topusers__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+          backdrop-filter: blur(12px) saturate(120%);
+  transition: border-color 150ms, transform 150ms;
+}
+.wb-topusers__item:hover { border-color: rgba(255,255,255,0.18); transform: translateX(2px); }
+.wb-topusers.is-compact .wb-topusers__item { padding: 8px 12px; gap: 10px; }
+.wb-topusers__rank {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+  font-family: var(--wb-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--wb-text-subtle);
+}
+.wb-topusers__item:first-child .wb-topusers__rank { color: var(--wb-accent); }
+.wb-topusers__id {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.wb-topusers__name {
+  font-family: var(--grws-font-body);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--wb-text-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wb-topusers__area {
+  font-family: var(--wb-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  color: var(--wb-text-subtle);
+  margin-top: 2px;
+}
+.wb-topusers.is-compact .wb-topusers__area { display: none; }
+.wb-topusers__count {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-family: var(--grws-font-display);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--wb-text);
+  line-height: 1;
+}
+.wb-topusers__count small {
+  font-family: var(--wb-font-mono);
+  font-weight: 400;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--wb-text-subtle);
+  text-transform: uppercase;
+  margin-top: 3px;
 }
